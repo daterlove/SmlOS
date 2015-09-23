@@ -1,0 +1,18 @@
+#ifndef _GRAPHIC_H
+#define _GRAPHIC_H
+
+
+/*填充一个矩形*/
+void RectFill(unsigned char *vram, int nXSize,unsigned char Color, int x0, int y0, int x1, int y1);
+/*绘制背景*/
+void DrawBack(char *vram, int nXSize, int nYSize);
+/*输出字符串*/
+void PutFont_Asc(unsigned char *vram, int nXSize, int x, int y, char c,unsigned char *s);
+/*输出单个字符*/
+void PutFont8(unsigned char *vram, int nXSize, int x, int y, char c, char *font);
+/*初始化 鼠标图像数组*/
+void Init_MouseCur(char *mouse, char cBackColor);
+/*显示一个图像块*/
+void PutBlock(unsigned char *vram, int vxsize, int pxsize,int pysize, int px0, int py0, char *buf, int bxsize);
+
+#endif
