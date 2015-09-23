@@ -2,6 +2,7 @@
 #define	_COMMON_H
 
 #include <stdio.h>
+#include "VariableType.h"//变量类型定义，必须放在前面，否则出错
 
 #include "Color_Define.h"
 #include "GDT_IDT.h"
@@ -9,7 +10,7 @@
 #include "Interruput.h"
 #include "FIFO.h"
 #include "Key_Mouse.h"
-#include "VariableType.h"
+
 
 #define ADR_BOOTINFO	0x00000ff0	/* 存放启动信息的地址 */
 
