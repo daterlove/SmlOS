@@ -10,9 +10,11 @@
 #include "Interruput.h"
 #include "FIFO.h"
 #include "Key_Mouse.h"
-
+#include "MemManage.h"
+#include "SheetManage.h"
 
 #define ADR_BOOTINFO	0x00000ff0	/* 存放启动信息的地址 */
+#define MEMMAN_ADDR			0x003c0000	/* MEMMAN结构将被存放在该地址处 */
 
 extern struct FIFO8 KeyFifo, MouseFifo;
 
@@ -39,7 +41,8 @@ void io_out32(int port, int data);	// 将32位的data输出到port端口
 	
 int io_load_eflags(void);			// 将EFLAGS寄存器的内容返回
 void io_store_eflags(int eflags);	//	将EFLAGS寄存器的内容保存
-	
+
+unsigned int memtest_sub(unsigned int start, unsigned int end);//内存检查函数
 
 
 
