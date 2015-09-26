@@ -4,6 +4,9 @@
 ;时间：2015-9-19
 ;功能描述：系统启动 的前期处理程序
 ;---------------------------------------------
+[INSTRSET "i486p"]
+
+VBEMODE	EQU		0x103			; 1024 x  76
 BOTPAK	EQU		0x00280000		; 内核代码段基址
 DSKCAC	EQU		0x00100000		; boot.bin的512B将被移动到该地址处 (1M)
 DSKCAC0	EQU		0x00008000		; 映像文件 加载到内存 的起始地址（第二扇区）
@@ -17,14 +20,70 @@ VRAM	EQU		0X0FF8
 ;---------------------------------------------
 	ORG		0xc200
 	
-	MOV AL,0X13
-	MOV	AH,0X00
-	INT	0X10
+	;MOV AL,0X13
+	;MOV	AH,0X00
+	;INT	0X10
 	
-	MOV	BYTE[VMODE],8	;8位彩色
-	MOV	WORD[SCRNX],320
-	MOV WORD[SCRNY],200
-	MOV	DWORD[VRAM],0X000A0000	;VGA显卡，320*200*8位彩色，显存地址
+	;MOV	BYTE[VMODE],8	;8位彩色
+	;MOV	WORD[SCRNX],320
+	;MOV WORD[SCRNY],200
+	;MOV	DWORD[VRAM],0X000A0000	;VGA显卡，320*200*8位彩色，显存地址
+	
+; 确认VBE是否存在
+	MOV		AX,0x9000		
+	MOV		ES,AX
+	MOV		DI,0			; ES:DI 存放VBE信息
+	MOV		AX,0x4f00		
+	INT		0x10
+	CMP		AX,0x004f		
+	JNE		scrn320
+
+; 检测VBE版本
+	MOV		AX,[ES:DI+4]
+	CMP		AX,0x0200
+	JB		scrn320			; if (AX < 0x0200) goto scrn320
+
+; 取得画面模式信息
+	MOV		CX,VBEMODE
+	MOV		AX,0x4f01
+	INT		0x10
+	CMP		AX,0x004f
+	JNE		scrn320
+
+; 画面模式信息确认
+	CMP		BYTE [ES:DI+0x19],8
+	JNE		scrn320
+	CMP		BYTE [ES:DI+0x1b],4
+	JNE		scrn320
+	MOV		AX,[ES:DI+0x00]
+	AND		AX,0x0080
+	JZ		scrn320			; 模式属性的bit7是0  所以放弃
+
+; 画面模式切换
+
+	MOV		BX,VBEMODE+0x4000
+	MOV		AX,0x4f02
+	INT		0x10
+	MOV		BYTE [VMODE],8	; 记录下画面模式
+	MOV		AX,[ES:DI+0x12]
+	MOV		[SCRNX],AX
+	MOV		AX,[ES:DI+0x14]
+	MOV		[SCRNY],AX
+	MOV		EAX,[ES:DI+0x28]
+	MOV		[VRAM],EAX
+	JMP		keystatus
+
+scrn320:
+	MOV		AL,0x13			; VGA图、320*200*8bit彩色
+	MOV		AH,0x00
+	INT		0x10
+	MOV		BYTE [VMODE],8	; 记录下画面模式
+	MOV		WORD [SCRNX],320
+	MOV		WORD [SCRNY],200
+	MOV		DWORD [VRAM],0x000a0000	
+
+		
+keystatus:	
 	
 	MOV	AH,0X02
 	INT 0X16
@@ -91,13 +150,13 @@ protectMode:
 
 ;----------------------------------------------
 ;将从映像中读入的数据从0x8200处复制到0x00100200处
-		MOV		ESI,DSKCAC0+512	; ESI = 0x8200
-		MOV		EDI,DSKCAC+512	; EDI = 0x00100200
-		MOV		ECX,0
-		MOV		CL,BYTE [CYLS]	; CL = 共读入的柱面数
-		IMUL	ECX,512*18*2/4	; 一共要复制的次数
-		SUB		ECX,512/4		; 减去(启动扇区的字节数/4)
-		CALL	memcpy
+	MOV		ESI,DSKCAC0+512	; ESI = 0x8200
+	MOV		EDI,DSKCAC+512	; EDI = 0x00100200
+	MOV		ECX,0
+	MOV		CL,BYTE [CYLS]	; CL = 共读入的柱面数
+	IMUL	ECX,512*18*2/4	; 一共要复制的次数
+	SUB		ECX,512/4		; 减去(启动扇区的字节数/4)
+	CALL	memcpy
 		
 ;----------------------------------------------
 ;内核的启动
