@@ -75,4 +75,35 @@ struct SHTCTL
 	struct SHEET *p_sheets[MAX_SHEETS];
 	struct SHEET sheets[MAX_SHEETS];
 };
+
+/*---------------------------------------------------------------*/
+#define MAX_TIMER		500			/* 定时器最多可以有500个 */
+
+/* 定时器结构体 */
+/* 
+   timeout	相对于当前时间的预定时刻
+   flags	记录定时器状态
+   fifo		定时器队列指针
+   data		定时器数据
+ */
+struct TIMER
+{
+	unsigned int timeout, flags;
+	struct FIFO8 *fifo;
+	unsigned char data;
+};
+
+/* 管理定时器的结构 */
+/* 
+   count	计数器		next	"下一时刻"(不知道怎么描述..)
+   using	当前活动的定时器数量
+   timers	定时器结构指针数组	(注意：这是一个有序数组,和sheets[]结构是一样的作用)
+   timers0	定时器结构数组
+ */
+struct TIMERCTL
+{
+	unsigned int count, next, using;
+	struct TIMER *timers[MAX_TIMER];
+	struct TIMER timers0[MAX_TIMER];
+};
 #endif

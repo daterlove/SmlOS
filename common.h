@@ -12,6 +12,7 @@
 #include "Key_Mouse.h"
 #include "MemManage.h"
 #include "SheetManage.h"
+#include "Timer.h"
 
 #define ADR_BOOTINFO	0x00000ff0	/* 存放启动信息的地址 */
 #define MEMMAN_ADDR			0x003c0000	/* MEMMAN结构将被存放在该地址处 */
@@ -28,6 +29,7 @@ void io_stihlt(void);
 void load_gdtr(int limit, int addr);
 void load_idtr(int limit, int addr);
 
+void asm_inthandler20(void);		/* IRQ1服务程序 */
 void asm_inthandler21(void);		/* IRQ1服务程序 */
 void asm_inthandler27(void);		/* IRQ7服务程序 */
 void asm_inthandler2c(void);		/* IRQ12服务程序 */

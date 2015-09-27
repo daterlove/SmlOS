@@ -192,8 +192,8 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 	RectFill(buf, xsize, COL_GREY, 1,         ysize - 2, xsize - 2, ysize - 2);
 	RectFill(buf, xsize, COL_BLACK, 0,         ysize - 1, xsize - 1, ysize - 1);
 	*/
-	RectFill(buf, xsize, COL_LIGHT_BLACK, 0,         0,         xsize - 1, ysize-1        );
-	RectFill(buf, xsize, COL_GREY, 2,         20,         xsize - 3, ysize-3        );
+	RectFill(buf, xsize, COL_BLACK, 0,	0,xsize - 1, ysize-1);
+	RectFill(buf, xsize, COL_GREY, 2,	20,xsize - 3, ysize-3);
 	
 	/* 输出窗口的标题 */
 	PutFont_Asc(buf, xsize, 20, 3, COL_WHITE, title);
@@ -209,7 +209,7 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 			} 
 			else if (c == '$') 
 			{
-				c = COL_GREY;
+				c = COL_RED;
 			} 
 			else if (c == 'Q') 
 			{
@@ -219,7 +219,7 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 			{
 				c = COL_RED;
 			}
-			buf[(5 + y) * xsize + (xsize - 21 + x)] = c;
+			buf[(3 + y) * xsize + (xsize - 19 + x)] = c;
 		}
 	}
 	return;

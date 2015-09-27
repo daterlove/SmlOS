@@ -6,7 +6,7 @@
 	GLOBAL _io_hlt, _io_cli, _io_sti, _io_stihlt		;程序包含的函数名
 	GLOBAL	_load_gdtr, _load_idtr
 	
-	GLOBAL	_asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
+	GLOBAL	_asm_inthandler20,_asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
 	
 	GLOBAL	_io_in8,  _io_in16,  _io_in32
 	GLOBAL	_io_out8, _io_out16, _io_out32
@@ -16,7 +16,7 @@
 	
 	GLOBAL	_memtest_sub
 	
-	EXTERN	_inthandler21, _inthandler27, _inthandler2c
+	EXTERN	_inthandler20,_inthandler21, _inthandler27, _inthandler2c
 	
 	
 [SECTION .text]			;目标文件写了这些 之后再写函数
@@ -70,7 +70,23 @@ _store_cr0:		; void store_cr0(int cr0);
 ;	IEQ5	并行口2			IRQ13	协处理器
 ;	IEQ6	软盘			IRQ14	硬盘	
 ;	IEQ7	并行口1			IRQ15	保留	
-; ----------------------------------------------------------		
+; ----------------------------------------------------------
+_asm_inthandler20:	; IRQ0	时钟
+	PUSH	ES
+	PUSH	DS
+	PUSHAD					; 保存寄存器
+	MOV		EAX,ESP
+	PUSH	EAX
+	MOV		AX,SS			; 修改DS ES SS
+	MOV		DS,AX
+	MOV		ES,AX
+	CALL	_inthandler20	; 调用处理函数
+	POP		EAX				; 恢复各个寄存器的值
+	POPAD
+	POP		DS
+	POP		ES
+	IRETD
+		
 _asm_inthandler21:	; IRQ 1		键盘
 	PUSH	ES			
 	PUSH	DS

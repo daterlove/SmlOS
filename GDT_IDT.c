@@ -32,6 +32,7 @@ void init_gdtidt(void)
 	}
 	load_idtr(0x7ff, 0x0026f800);//加载IDT	
 
+	set_gatedesc(idt + 0x20, (int) asm_inthandler20, 2 * 8, AR_INTGATE32);	/* 设置INT 0x20中断的门描述符 */
 	set_gatedesc(idt + 0x21, (int) asm_inthandler21, 2 * 8, AR_INTGATE32);	/* 设置INT 0x21中断的门描述符 */
 	set_gatedesc(idt + 0x27, (int) asm_inthandler27, 2 * 8, AR_INTGATE32);	/* 设置INT 0x27中断的门描述符 */
 	set_gatedesc(idt + 0x2c, (int) asm_inthandler2c, 2 * 8, AR_INTGATE32);	/* 设置INT 0x2c中断的门描述符 */

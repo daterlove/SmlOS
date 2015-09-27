@@ -18,6 +18,7 @@
 #define PORT_KEYDAT		0x0060		/* 8042的数据端口号 */
 
 void Init_PIC(void);					/* 初始化PIC */
+void IntHandler20(int *esp);	
 void IntHandler21(int *esp);						
 void IntHandler27(int *esp);
 void IntHandler2c(int *esp);
