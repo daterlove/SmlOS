@@ -1,6 +1,7 @@
 #include "common.h"
 
 extern struct TIMERCTL timerctl;
+extern struct TIMER *mt_timer;
 
 /* 初始化PIC */
 void Init_PIC(void)
@@ -58,14 +59,19 @@ void inthandler27(int *esp)
 /* 时钟中断处理函数 */
 void inthandler20(int *esp)
 {
-	/*
-	struct BOOTINFO *stBootInfo= (struct BOOTINFO *) 0x0ff0;//获取启动时候保存的信息
-	unsigned char *vram=stBootInfo->vram;
-	int nXSize=stBootInfo->scrnx;
-	int nYSize=stBootInfo->scrny;
-	RectFill(vram, nXSize, COL_WHITE, 0, 51, 230, 166); 
+	/*测试语句
+			struct BOOTINFO *stBootInfo= (struct BOOTINFO *) 0x0ff0;//获取启动时候保存的信息
+			unsigned char *vram=stBootInfo->vram;
+			int nXSize=stBootInfo->scrnx;
+			int nYSize=stBootInfo->scrny;
+			RectFill(vram, nXSize, COL_RED, 0, 100, 330, 120);
+			char s[20];
+			sprintf(s,"%d--%d--%d",timerctl.timers[i],mt_timer,timerctl.count);
+		
+			PutFont_Asc(vram, nXSize, 0, 100, COL_BLACK, s);//输出屏幕大小文字
 	*/
 	int i, j;
+	char ts = 0;
 	io_out8(PIC0_OCW2, 0x60);	/* 通知IRQ0已经受理完毕 */
 	timerctl.count++;		
 	
@@ -82,8 +88,19 @@ void inthandler20(int *esp)
 			break;
 		}
 		/* 超时 */
+		
 		timerctl.timers[i]->flags = TIMER_FLAGS_ALLOC;
-		fifo8_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);
+		
+		/* 判断产生中断的定时器是不是 任务切换定时器 mk_timer */
+		if ( timerctl.timers[i]!= mt_timer)
+		{		
+			fifo8_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);			
+		} 
+		else //是任务切换定时器
+		{			
+			ts = 1; /* mt_timer超时 */
+		}
+
 	}
 	
 	/* 正好有i个定时器超时, 其余的进行移位 */
@@ -93,12 +110,18 @@ void inthandler20(int *esp)
 		timerctl.timers[j] = timerctl.timers[i + j];
 	}
 	
-	if (timerctl.using > 0) {	/* 还有活动的定时器 */
+	if (timerctl.using > 0) /* 还有活动的定时器 */
+	{	
 		timerctl.next = timerctl.timers[0]->timeout;	
 	} 
 	else 
 	{
 		timerctl.next = 0xffffffff;
+	}
+	
+	if (ts != 0) /* 任务切换*/
+	{			
+		mt_taskswitch();
 	}
 	return;
 }

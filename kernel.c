@@ -8,6 +8,9 @@ struct FIFO8 KeyFifo, MouseFifo;
 
 extern struct TIMERCTL timerctl;
 
+/* 任务B */
+void task_b_main(struct SHEET *sht_back);
+
 void HariMain(void)
 {
 /*-----相关变量定义----*/	
@@ -21,11 +24,15 @@ void HariMain(void)
 	
 	struct SHTCTL *shtctl;		/* 图层管理结构指针 */
 	struct SHEET *Sht_Back, *Sht_Mouse, *Sht_Win;	/* 背景以及鼠标的图层指针 */
-	unsigned char *Buf_Back, Buf_Mouse[256],*Buf_Win;;
+	unsigned char *Buf_Back, Buf_Mouse[256],*Buf_Win;
 
 	char timerbuf[8], timerbuf2[8], timerbuf3[8];
 	struct FIFO8 timerfifo, timerfifo2, timerfifo3;	/* 用于定时器的队列 */
 	struct TIMER *timer, *timer2, *timer3;
+	
+	struct TSS32 tss_a, tss_b;  //两个任务状态描述符
+	int task_b_esp;				//保存任务b的堆栈地址
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;	/* 申请一个段描述符 */
 	
 /*-----系统初始化操作----*/
 	unsigned char *vram=stBootInfo->vram;
@@ -45,7 +52,8 @@ void HariMain(void)
 /*----初始化鼠标键盘操作----*/
 	fifo8_init(&KeyFifo, 32, KeyBuf);		/* 初始化键盘缓冲区结构体 */
 	fifo8_init(&MouseFifo, 128, MouseBuf);	/* 初始化鼠标缓冲区结构体 */
-//	io_out8(PIC0_IMR, 0xf9); /* 这个bug调我N久，注视下留个纪念。。*/
+	
+	//	io_out8(PIC0_IMR, 0xf9); /* 这个bug调我N久，注视下留个纪念。。*/
 
 	io_out8(PIC1_IMR, 0xef); /* PIC1(11101111) (打开PS2鼠标中断 即IRQ12)*/	
 	Init_Keyboard();/*初始化键盘控制电路*/	
@@ -86,7 +94,7 @@ void HariMain(void)
 	
 	Init_MouseCur(Buf_Mouse, COL_BACK_BLUE);		/* 初始化鼠标图形 */
 	DrawBack(Buf_Back, nXSize, nYSize);	/* 绘制背景 */
-	make_window8(Buf_Win, 160, 52, "Counter");	/* 绘制窗口图形 */
+	make_window8(Buf_Win, 160, 52, "Window");	/* 绘制窗口图形 */
 	
 	sheet_slide(Sht_Back, 0, 0);	/* 设置背景图层的位置 */
 	sheet_slide(Sht_Win, 180, 72);				/* 设置窗口图层的位置 */
@@ -101,35 +109,65 @@ void HariMain(void)
 	
 	
 /*----显示信息----*/
-	sprintf(s, "(%3d, %3d)", mx, my);
+	//sprintf(s, "(%3d, %3d)", mx, my);
 	sprintf(szTemp, "Screen:(%d, %d)", nXSize, nYSize);
-	PutFont_Asc(Buf_Back, nXSize, 0, 0, COL_WHITE, szTemp);//输出屏幕大小文字
-	sheet_refresh(Sht_Back, 0, 0, 140, 16);
+	putfonts8_asc_sht(Sht_Back, 0, 0,COL_RED,COL_WHITE, szTemp, 17);//在图层上显示文字
 	
-	sprintf(szTemp, "MemMaxSize:%d MB", nMemMaxSize/(1024*1024));
-	//sprintf(szTemp, "MemMaxSize:%X MB", vram);
-	RectFill(Buf_Back, nXSize, COL_WHITE, 0, 51, 130, 66); 
-	PutFont_Asc(Buf_Back, nXSize, 0, 51, COL_BLACK, szTemp); // 显示内存信息 
-	sheet_refresh(Sht_Back, 0, 51, 130+1, 66+1);	 
+	sprintf(szTemp, "MemMaxSize:%d MB", nMemMaxSize/(1024*1024));	 
+	putfonts8_asc_sht(Sht_Back, 0, 51,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
 	
-	sprintf(szTemp, "MemFree:%d KB", memman_total(memman) /1024);
-	RectFill(Buf_Back, nXSize, COL_WHITE, 0, 68, 130, 83); 
-	PutFont_Asc(Buf_Back, nXSize, 0, 68, COL_BLACK, szTemp); // 显示内存信息 
-	sheet_refresh(Sht_Back, 0, 68, 130+1, 83+1);	
-
+	sprintf(szTemp, "MemFree:%d KB", memman_total(memman) /1024);	
+	putfonts8_asc_sht(Sht_Back, 0, 68,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
+	
 /*----定时器设置----*/
 	fifo8_init(&timerfifo, 8, timerbuf);	/* 初始化队列结构 */
 	timer = timer_alloc();					/* 创建定时器 */
 	timer_init(timer, &timerfifo, 1);		/* 定时器初始化 */
-	timer_settime(timer, 300);				/* 定时器设置 */	
+	timer_settime(timer, 100);				/* 定时器设置 */	
 					
 	int i;
 	int count=0;
 	/*备注：可能由于测试虚拟机CPU调度策略不同，VM虚拟机 io_stihlt()操作时，
 	CPU休眠，count并不自加，而Qemu不会*/
+	
+/*---任务切换相关---*/
+	tss_a.ldtr = 0;			
+	tss_a.iomap = 0x40000000;
+	tss_b.ldtr = 0;
+	tss_b.iomap = 0x40000000;
+	set_segmdesc(gdt + 3, 103, (int) &tss_a, AR_TSS32);		/* 设置任务a和任务b的TSS描述符并添加到GDT中 */
+	set_segmdesc(gdt + 4, 103, (int) &tss_b, AR_TSS32);
+	load_tr(3 * 8);				/* 设置TR寄存器 GDT中第3号描述符也就是任务A */
+	/* 因为在任务切换时,cpu会自动保存当前任务的寄存器的值, 所以我们这里只设置了任务B的TSS的值 */
+	
+	task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;	/* 创建任务B的堆栈 */
+	tss_b.eip = (int) &task_b_main;		/* 设置任务B的寄存器 */
+	tss_b.eflags = 0x00000202; /* IF = 1; */
+	tss_b.eax = 0;
+	tss_b.ecx = 0;
+	tss_b.edx = 0;
+	tss_b.ebx = 0;
+	tss_b.esp = task_b_esp;
+	tss_b.ebp = 0;
+	tss_b.esi = 0;
+	tss_b.edi = 0;
+	tss_b.es = 1 * 8;
+	tss_b.cs = 2 * 8;
+	tss_b.ss = 1 * 8;
+	tss_b.ds = 1 * 8;
+	tss_b.fs = 1 * 8;
+	tss_b.gs = 1 * 8;
+	/* 先将task_b_esp + 4转换成int类型的指针  即(int *) (task_b_esp + 4) */
+	/* 再将(int) sht_back赋值到该地址处*((int *) (task_b_esp + 4)) */
+	
+	*((int *) (task_b_esp + 4)) = (int) Sht_Back;		/* 将sht_back预先存入任务B的堆栈中 */
+	mt_init();			/* 任务切换的初始化(在该函数中会定义非常重要的mt_timer定时器) */
+	
+	
+/*---内核循环---*/	
 	for (;;) 
 	{
-			/*
+		/*
 		//调试语句段
 		count++;		//计数器加1 
 		sprintf(s, "%010d", timerctl.count);
@@ -137,7 +175,7 @@ void HariMain(void)
 		PutFont_Asc(Buf_Win, 160, 40, 28, COL_BLACK, s);
 		sheet_refresh(Sht_Win, 40, 28, 120, 44);		//在窗口中显示计数器的值 
 		*/
-		
+
 		io_cli();		/* 关闭所有可屏蔽中断 */
 		/* 如果键盘缓冲区或者鼠标缓冲区中都没有数据 */
 		if (fifo8_status(&KeyFifo) + fifo8_status(&MouseFifo) +fifo8_status(&timerfifo)== 0) 
@@ -151,11 +189,8 @@ void HariMain(void)
 				i = fifo8_get(&KeyFifo);			/* 读取数据 */
 				io_sti();							/* 打开所有可屏蔽中断 */
 				
-				sprintf(s, "%02X", i);				/* 将读取的数据以十六进制形式输出 */
-				RectFill(Buf_Back, nXSize, COL_WHITE,  0, 16, 15, 31);
-				PutFont_Asc(Buf_Back, nXSize, 0, 16, COL_BLACK, s);
-				
-				sheet_refresh(Sht_Back,  0, 16, 15+1, 31+1);		/* 刷新sht_back图层缓冲区中的某一矩形区域 */
+				sprintf(s, "%02X", i);				/* 将读取的数据以十六进制形式输出 */		
+				putfonts8_asc_sht(Sht_Back, 0, 16,COL_BLACK,COL_GREEN, s, 2);//在图层上显示文字
 			} 
 			else if (fifo8_status(&MouseFifo) != 0) 
 			{	/* 如果鼠标缓冲区中有数据 */
@@ -177,9 +212,8 @@ void HariMain(void)
 					{	
 						s[2] = 'C';
 					}
-					RectFill(Buf_Back, nXSize,COL_WHITE, 32, 16, 32 + 15 * 8 - 1, 31);
-					PutFont_Asc(Buf_Back, nXSize, 32, 16, COL_BLACK, s);	/* 输出信息 */
-					sheet_refresh(Sht_Back, 32, 16, 32 + 15 * 8+1 , 31+1);
+
+					putfonts8_asc_sht(Sht_Back, 32, 16,COL_BLACK,COL_GREEN, s, 15);//在图层上显示文字
 					
 					mx += mdec.x;					/* 更新新的鼠标位置 */
 					my += mdec.y;
@@ -203,11 +237,7 @@ void HariMain(void)
 					}
 					
 					sprintf(s, "MousePos:(%3d, %3d)", mx, my);
-					RectFill(Buf_Back, nXSize, COL_WHITE, 0, 33, 32 + 15 * 8 - 1, 49); /* 隐藏坐标 */
-					PutFont_Asc(Buf_Back, nXSize, 0, 33, COL_BLACK, s); /* 显示新坐标 */
-					
-					/*刷新sht_back图层缓冲区中的某一矩形区域以显示上面的更改 */
-					sheet_refresh(Sht_Back, 0, 33, 32 + 15 * 8+1, 50);			
+					putfonts8_asc_sht(Sht_Back, 0, 33,COL_BLACK,COL_GREEN, s, 19);//在图层上显示文字
 					
 					sheet_slide(Sht_Mouse, mx, my);	/* 更新鼠标图层的位置并显示新的鼠标图层 */
 				
@@ -217,12 +247,66 @@ void HariMain(void)
 			{	
 				i = fifo8_get(&timerfifo); /* 读入数据 */
 				io_sti();				/* 打开所有可屏蔽中断 */
-				sprintf(s, "Timer");
-				RectFill(Buf_Win, 160, COL_APPLE_GRREN, 40, 28, 119, 43);
-				PutFont_Asc(Buf_Win, 160, 40, 28, COL_BLACK, s);
-				sheet_refresh(Sht_Win, 40, 28, 120, 44);		//在窗口中显示计数器的值 
+				
+				sprintf(s, "Timer");					
+				putfonts8_asc_sht(Sht_Win, 40, 28,COL_BLACK,COL_APPLE_GRREN, s, 6);//在图层上显示文字
+				
+				//mt_taskswitch();
+				//-----------任务栏秒数显示----------------------------------
+				sprintf(s, "%03d Sec", timerctl.count/100);
+				putfonts8_asc_sht(Sht_Back, nXSize-60, nYSize-23,COL_WHITE,COL_BLACK, s, 9);//在图层上显示文字
+				
+				timer_settime(timer, 100);				/* 定时器设置 */	
 			}
 		}	
 	}
+}
+
+
+/* 任务B */
+void task_b_main(struct SHEET *sht_back)
+{
+	struct FIFO8 fifo;
+	
+	struct TIMER *timer_put, *timer_1s;
+	int i, fifobuf[128], count = 0, count0 = 0;
+	char s[12];
+
+	fifo8_init(&fifo, 128, fifobuf);
+	
+	timer_put = timer_alloc();		
+	timer_init(timer_put, &fifo, 1);
+	timer_settime(timer_put, 100);
+	
+	timer_1s = timer_alloc();
+	timer_init(timer_1s, &fifo, 100);
+	timer_settime(timer_1s, 100);
+
+	for (;;) {
+		count++;
+		
+		io_cli();
+		if (fifo8_status(&fifo) == 0) {
+			io_sti();
+		} else {
+			i = fifo8_get(&fifo);
+			io_sti();
+			if (i == 1) {
+				sprintf(s, "%11d", count);
+				
+				putfonts8_asc_sht(sht_back, 0, 144, COL_BLACK, COL_WHITE, s, 11);
+				
+				timer_settime(timer_put, 1);
+				
+			} else if (i == 100) {
+				
+				sprintf(s, "%11d", count - count0);
+				putfonts8_asc_sht(sht_back, 0, 128, COL_BLACK, COL_WHITE, s, 11);
+				count0 = count;
+				timer_settime(timer_1s, 100);
+			}
+		}
+	}
+	
 }
 

@@ -12,11 +12,12 @@
 	GLOBAL	_io_out8, _io_out16, _io_out32
 	
 	GLOBAL	_io_load_eflags, _io_store_eflags
-	GLOBAL	_load_cr0, _store_cr0
+	GLOBAL	_load_cr0, _store_cr0,_load_tr
 	
-	GLOBAL	_memtest_sub
+	GLOBAL	_memtest_sub,_farjmp
 	
 	EXTERN	_inthandler20,_inthandler21, _inthandler27, _inthandler2c
+	
 	
 	
 [SECTION .text]			;目标文件写了这些 之后再写函数
@@ -59,6 +60,10 @@ _store_cr0:		; void store_cr0(int cr0);
 	MOV		EAX,[ESP+4]
 	MOV		CR0,EAX
 	RET		
+	
+_load_tr:		; void load_tr(int tr);		; 设置TR寄存器的值
+	LTR		[ESP+4]			; tr
+	RET
 	
 ; ---------------------------------------------------------- 
 ;	   主PIC					从PIC
@@ -220,3 +225,7 @@ mts_fin:
 	POP		EDI
 	RET
 	
+; ---------------------------------------------------------- 	
+_farjmp:		; void farjmp(int eip, int cs);		; 远跳转
+		JMP		FAR	[ESP+4]				; eip, cs
+		RET

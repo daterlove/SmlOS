@@ -11,6 +11,7 @@
 #define AR_CODE32_ER	0x409a			/* 32位代码段属性值 */
 #define AR_INTGATE32	0x008e			/* 32位门描述符属性值 */
 
+#define AR_TSS32		0x0089			/* 32位TSS (可用) */
 
 /*
 	limit_low	段限长的0~15bit		base_low	段基址的0~15bit

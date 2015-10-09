@@ -61,7 +61,16 @@ void RectFill(unsigned char *vram, int nXSize,unsigned char Color, int x0, int y
 /*绘制背景*/
 void DrawBack(char *vram, int nXSize, int nYSize)
 {
-	RectFill(vram,nXSize,COL_BACK_BLUE,0,0,nXSize,nYSize);
+	RectFill(vram,nXSize,COL_WHITE,0,0,nXSize,nYSize);
+	
+	RectFill(vram,nXSize,COL_BLACK,0,nYSize-30,nXSize,nYSize);//任务栏
+	RectFill(vram,nXSize,COL_DARK_GREY,40,nYSize-25,40,nYSize-5);//任务栏左边线
+	PutFont_Asc(vram, nXSize, nXSize+10, nYSize-23,COL_GREEN, "SML"); // 左边图标
+	PutFont_Asc(vram, nXSize, nXSize+11, nYSize-23,COL_GREEN, "SML");
+	
+	RectFill(vram,nXSize,COL_DARK_GREY,nXSize-70,nYSize-25,nXSize-70,nYSize-5);//任务栏右边线
+	
+	PutFont_Asc(vram, nXSize, nXSize-60, nYSize-23, COL_WHITE, "000 Sec"); // 显示秒数信息 
 }
 
 /*输出字符串*/
@@ -127,11 +136,11 @@ void Init_MouseCur(char *mouse, char cBackColor)
 		{
 			if (cursor[y][x] == '*') 
 			{
-				mouse[y * 16 + x] = COL_BLACK;
+				mouse[y * 16 + x] = COL_LIGHT_BLUE;
 			}
 			if (cursor[y][x] == 'O') 
 			{
-				mouse[y * 16 + x] = COL_WHITE;
+				mouse[y * 16 + x] = cBackColor;
 			}
 			if (cursor[y][x] == '.') 
 			{
@@ -193,7 +202,12 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 	RectFill(buf, xsize, COL_BLACK, 0,         ysize - 1, xsize - 1, ysize - 1);
 	*/
 	RectFill(buf, xsize, COL_BLACK, 0,	0,xsize - 1, ysize-1);
-	RectFill(buf, xsize, COL_GREY, 2,	20,xsize - 3, ysize-3);
+	RectFill(buf, xsize, COL_GREY, 3,	22,xsize - 4, ysize-3);
+	
+	RectFill(buf, xsize, COL_GREY, 0,	0,0, ysize-1);
+	RectFill(buf, xsize, COL_GREY, 0,	0,xsize - 1, 0);
+	RectFill(buf, xsize, COL_GREY, xsize - 1,	0,xsize - 1, ysize-1);
+	RectFill(buf, xsize, COL_GREY, 0,	ysize-1,xsize - 1, ysize-2);
 	
 	/* 输出窗口的标题 */
 	PutFont_Asc(buf, xsize, 20, 3, COL_WHITE, title);
@@ -222,5 +236,23 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 			buf[(3 + y) * xsize + (xsize - 19 + x)] = c;
 		}
 	}
+	return;
+}
+
+/* 
+输出文字到指定图层：
+	sht 结构体图层
+	x,y	显示位置的左上角坐标
+	c	字符颜色
+	b	背景颜色
+	s	字符串
+	l	字符串长度
+ */
+void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l)
+{
+
+	RectFill(sht->buf, sht->bxsize, b, x, y, x + l * 8 , y + 16);
+	PutFont_Asc(sht->buf, sht->bxsize, x, y, c, s);
+	sheet_refresh(sht, x, y, x + l * 8+1, y + 16+1);//刷新和上矩形一样大，加了1
 	return;
 }
