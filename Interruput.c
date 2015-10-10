@@ -1,7 +1,7 @@
 #include "common.h"
 
 extern struct TIMERCTL timerctl;
-extern struct TIMER *mt_timer;
+extern struct TIMER *task_timer;
 
 /* 初始化PIC */
 void Init_PIC(void)
@@ -92,7 +92,7 @@ void inthandler20(int *esp)
 		timerctl.timers[i]->flags = TIMER_FLAGS_ALLOC;
 		
 		/* 判断产生中断的定时器是不是 任务切换定时器 mk_timer */
-		if ( timerctl.timers[i]!= mt_timer)
+		if ( timerctl.timers[i]!= task_timer)
 		{		
 			fifo8_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);			
 		} 
@@ -121,7 +121,7 @@ void inthandler20(int *esp)
 	
 	if (ts != 0) /* 任务切换*/
 	{			
-		mt_taskswitch();
+		task_switch();
 	}
 	return;
 }

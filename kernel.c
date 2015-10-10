@@ -10,6 +10,7 @@ extern struct TIMERCTL timerctl;
 
 /* 任务B */
 void task_b_main(struct SHEET *sht_back);
+void task_b_main1(struct SHEET *sht_back);
 
 void HariMain(void)
 {
@@ -23,15 +24,16 @@ void HariMain(void)
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;	
 	
 	struct SHTCTL *shtctl;		/* 图层管理结构指针 */
-	struct SHEET *Sht_Back, *Sht_Mouse, *Sht_Win;	/* 背景以及鼠标的图层指针 */
-	unsigned char *Buf_Back, Buf_Mouse[256],*Buf_Win;
+	struct SHEET *Sht_Back, *Sht_Mouse, *Sht_Win,*Sht_TaskWin[2];	/* 背景以及鼠标的图层指针 */
+	unsigned char *Buf_Back, Buf_Mouse[256],*Buf_Win,*Buf_TaskWin[2];
 
 	char timerbuf[8], timerbuf2[8], timerbuf3[8];
 	struct FIFO8 timerfifo, timerfifo2, timerfifo3;	/* 用于定时器的队列 */
 	struct TIMER *timer, *timer2, *timer3;
 	
-	struct TSS32 tss_a, tss_b;  //两个任务状态描述符
-	int task_b_esp;				//保存任务b的堆栈地址
+	//struct TSS32 tss_a, tss_b;  //两个任务状态描述符
+	struct TASK *task_a, *task_b[2];
+	
 	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;	/* 申请一个段描述符 */
 	
 /*-----系统初始化操作----*/
@@ -66,6 +68,7 @@ void HariMain(void)
 	
 	/* 这段内存是4K~636K-1,这段内存是4K~636K-1,映像刚开始载入内存的内容，包括引导程序那部分*/
 	memman_free(memman, 0x00001000, 0x0009e000); 	/* 0x00001000 - 0x0009efff */
+	//这里可能有错误，可能会覆盖显存地址
 	
 	memman_free(memman, 0x00400000, nMemMaxSize - 0x00400000);	/* 4M~内存实际大小 */
 	
@@ -84,28 +87,40 @@ void HariMain(void)
 	Sht_Back  = sheet_alloc(shtctl);		/* 创建背景图层 */
 	Sht_Mouse = sheet_alloc(shtctl);		/* 创建鼠标图层 */
 	Sht_Win   = sheet_alloc(shtctl);		/* 创建窗口图层 */
+	Sht_TaskWin[0]	= sheet_alloc(shtctl);		/* 创建任务1图层 */
+	Sht_TaskWin[1]	= sheet_alloc(shtctl);		/* 创建任务2图层 */
 	
 	Buf_Back  = (unsigned char *) memman_alloc_4k(memman, nXSize * nYSize);	/* 分配内存空间 用于绘制背景*/
-	Buf_Win   = (unsigned char *) memman_alloc_4k(memman, 160 * 52);	/* 分配内存空间 用于绘制"窗口 */
+	Buf_Win   = (unsigned char *) memman_alloc_4k(memman, 300 * 200);	/* 分配内存空间 用于绘制"窗口 */
+	Buf_TaskWin[0] = (unsigned char *) memman_alloc_4k(memman, 170 * 75);
+	Buf_TaskWin[1] = (unsigned char *) memman_alloc_4k(memman, 170 * 75);
 	
-	sheet_setbuf(Sht_Back, Buf_Back, nXSize,nYSize, -1); /* 设置背景图层信息 */
+	sheet_setbuf(Sht_Back, Buf_Back, nXSize,nYSize, -1); 			/* 设置背景图层信息 */
 	sheet_setbuf(Sht_Mouse, Buf_Mouse, 16, 16, COL_BACK_BLUE);		/* 设置鼠标图层信息 */
-	sheet_setbuf(Sht_Win, Buf_Win, 160, 52, -1);						/* 设置窗口图层信息 */
+	sheet_setbuf(Sht_Win, Buf_Win, 300, 200, -1);					/* 设置窗口图层信息 */
+	sheet_setbuf(Sht_TaskWin[0], Buf_TaskWin[0], 170, 75, -1);
+	sheet_setbuf(Sht_TaskWin[1], Buf_TaskWin[1], 170, 75, -1);
 	
 	Init_MouseCur(Buf_Mouse, COL_BACK_BLUE);		/* 初始化鼠标图形 */
 	DrawBack(Buf_Back, nXSize, nYSize);	/* 绘制背景 */
-	make_window8(Buf_Win, 160, 52, "Window");	/* 绘制窗口图形 */
+	make_window8(Buf_Win, 300, 200, "Window");	/* 绘制窗口图形 */
+	make_window8(Buf_TaskWin[0], 170, 75, "Task1");	/* 绘制窗口图形 */
+	make_window8(Buf_TaskWin[1], 170, 75, "Task2");	/* 绘制窗口图形 */
 	
 	sheet_slide(Sht_Back, 0, 0);	/* 设置背景图层的位置 */
-	sheet_slide(Sht_Win, 180, 72);				/* 设置窗口图层的位置 */
+	sheet_slide(Sht_Win,  140, 160);				/* 设置窗口图层的位置 */
+	sheet_slide(Sht_TaskWin[0], nYSize - 20, 60);				/* 设置窗口图层的位置 */
+	sheet_slide(Sht_TaskWin[1], nYSize - 20, 140);				/* 设置窗口图层的位置 */
 	
 	int mx = (nXSize- 16) / 2; /* 计算鼠标图形在屏幕上的位置 它在整个桌面的中心位置 */
 	int my = (nYSize - 28 - 16) / 2;	
 	sheet_slide(Sht_Mouse, mx, my);	/* 设置鼠标图层的位置 */
 	
 	sheet_updown(Sht_Back,  0);		/* 调整背景图层和鼠标图层的高度 */
-	sheet_updown(Sht_Win,   1);		/* 调整默认窗口 */
-	sheet_updown(Sht_Mouse, 2);		/* 并且会显示背景与鼠标图层 */
+	sheet_updown(Sht_TaskWin[0],   1);	
+	sheet_updown(Sht_TaskWin[1],   2);	
+	sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */
+	sheet_updown(Sht_Mouse, 4);		/* 并且会显示背景与鼠标图层 */
 	
 	
 /*----显示信息----*/
@@ -131,38 +146,36 @@ void HariMain(void)
 	CPU休眠，count并不自加，而Qemu不会*/
 	
 /*---任务切换相关---*/
-	tss_a.ldtr = 0;			
-	tss_a.iomap = 0x40000000;
-	tss_b.ldtr = 0;
-	tss_b.iomap = 0x40000000;
-	set_segmdesc(gdt + 3, 103, (int) &tss_a, AR_TSS32);		/* 设置任务a和任务b的TSS描述符并添加到GDT中 */
-	set_segmdesc(gdt + 4, 103, (int) &tss_b, AR_TSS32);
-	load_tr(3 * 8);				/* 设置TR寄存器 GDT中第3号描述符也就是任务A */
-	/* 因为在任务切换时,cpu会自动保存当前任务的寄存器的值, 所以我们这里只设置了任务B的TSS的值 */
+
+	/* 任务切换初始化(*/
+	task_a = task_init(memman);//task_a 是内核任务
 	
-	task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;	/* 创建任务B的堆栈 */
-	tss_b.eip = (int) &task_b_main;		/* 设置任务B的寄存器 */
-	tss_b.eflags = 0x00000202; /* IF = 1; */
-	tss_b.eax = 0;
-	tss_b.ecx = 0;
-	tss_b.edx = 0;
-	tss_b.ebx = 0;
-	tss_b.esp = task_b_esp;
-	tss_b.ebp = 0;
-	tss_b.esi = 0;
-	tss_b.edi = 0;
-	tss_b.es = 1 * 8;
-	tss_b.cs = 2 * 8;
-	tss_b.ss = 1 * 8;
-	tss_b.ds = 1 * 8;
-	tss_b.fs = 1 * 8;
-	tss_b.gs = 1 * 8;
+	for(i=0;i<2;i++)
+	{
+		task_b[i]=task_alloc();//分配一个任务
+	
+		task_b[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;	/* 创建任务B的堆栈 */;
+		task_b[i]->tss.eip = (int) &task_b_main;		/* 设置任务B的寄存器 */
+	
+		task_b[i]->tss.es = 1 * 8;
+		task_b[i]->tss.cs = 2 * 8;
+		task_b[i]->tss.ss = 1 * 8;
+		task_b[i]->tss.ds = 1 * 8;
+		task_b[i]->tss.fs = 1 * 8;
+		task_b[i]->tss.gs = 1 * 8;
+	}
+	task_b[1]->tss.eip = (int) &task_b_main1;		/* 设置任务B的寄存器 */
+	
 	/* 先将task_b_esp + 4转换成int类型的指针  即(int *) (task_b_esp + 4) */
 	/* 再将(int) sht_back赋值到该地址处*((int *) (task_b_esp + 4)) */
+	*((int *) (task_b[0]->tss.esp + 4)) = (int) Sht_TaskWin[0];
+	*((int *) (task_b[1]->tss.esp + 4)) = (int) Sht_TaskWin[1];
 	
-	*((int *) (task_b_esp + 4)) = (int) Sht_Back;		/* 将sht_back预先存入任务B的堆栈中 */
-	mt_init();			/* 任务切换的初始化(在该函数中会定义非常重要的mt_timer定时器) */
+	task_run(task_a, 20);
 	
+	
+	task_run(task_b[0], 1);			
+	task_run(task_b[1], 2);	
 	
 /*---内核循环---*/	
 	for (;;) 
@@ -203,6 +216,7 @@ void HariMain(void)
 					if ((mdec.btn & 0x01) != 0) /* 如果左键被按下 */
 					{	
 						s[1] = 'L';
+						sheet_slide(Sht_Win, mx, my);
 					}
 					if ((mdec.btn & 0x02) != 0) /* 如果右键被按下 */
 					{	
@@ -248,8 +262,8 @@ void HariMain(void)
 				i = fifo8_get(&timerfifo); /* 读入数据 */
 				io_sti();				/* 打开所有可屏蔽中断 */
 				
-				sprintf(s, "Timer");					
-				putfonts8_asc_sht(Sht_Win, 40, 28,COL_BLACK,COL_APPLE_GRREN, s, 6);//在图层上显示文字
+				//sprintf(s, "Timer");					
+				//putfonts8_asc_sht(Sht_Win, 40, 28,COL_BLACK,COL_APPLE_GRREN, s, 6);//在图层上显示文字
 				
 				//mt_taskswitch();
 				//-----------任务栏秒数显示----------------------------------
@@ -278,32 +292,68 @@ void task_b_main(struct SHEET *sht_back)
 	timer_init(timer_put, &fifo, 1);
 	timer_settime(timer_put, 100);
 	
-	timer_1s = timer_alloc();
-	timer_init(timer_1s, &fifo, 100);
-	timer_settime(timer_1s, 100);
-
-	for (;;) {
-		count++;
-		
+	putfonts8_asc_sht(sht_back, 30, 28,COL_BLACK,COL_APPLE_GRREN, " priority:1", 14);//在图层上显示文字
+	
+	for (;;) 
+	{
+		count++;	
 		io_cli();
-		if (fifo8_status(&fifo) == 0) {
+		
+		if (fifo8_status(&fifo) == 0) 
+		{
 			io_sti();
-		} else {
+		} 
+		else 
+		{
 			i = fifo8_get(&fifo);
 			io_sti();
-			if (i == 1) {
-				sprintf(s, "%11d", count);
+			if (i == 1) 
+			{
+				sprintf(s, "%9d", count);
+				putfonts8_asc_sht(sht_back, 30, 50,COL_BLACK,COL_APPLE_GRREN, s, 14);//在图层上显示文字
 				
-				putfonts8_asc_sht(sht_back, 0, 144, COL_BLACK, COL_WHITE, s, 11);
+				timer_settime(timer_put, 10);		
+			}
+		}
+	}
+	
+}
+/* 任务B */
+void task_b_main1(struct SHEET *sht_back)
+{
+	struct FIFO8 fifo;
+	
+	struct TIMER *timer_put, *timer_1s;
+	int i, fifobuf[128], count = 0, count0 = 0;
+	char s[12];
+
+	fifo8_init(&fifo, 128, fifobuf);
+	
+	timer_put = timer_alloc();		
+	timer_init(timer_put, &fifo, 1);
+	timer_settime(timer_put, 100);
+	
+	putfonts8_asc_sht(sht_back, 30, 28,COL_BLACK,COL_APPLE_GRREN, " priority:2", 14);//在图层上显示文字
+	
+	for (;;) 
+	{
+		count++;	
+		io_cli();
+		
+		if (fifo8_status(&fifo) == 0) 
+		{
+			io_sti();
+		} 
+		else 
+		{
+			i = fifo8_get(&fifo);
+			io_sti();
+			if (i == 1) 
+			{
+				sprintf(s, "%9d", count);
+				putfonts8_asc_sht(sht_back, 30, 50,COL_BLACK,COL_APPLE_GRREN, s, 14);//在图层上显示文字
 				
-				timer_settime(timer_put, 1);
-				
-			} else if (i == 100) {
-				
-				sprintf(s, "%11d", count - count0);
-				putfonts8_asc_sht(sht_back, 0, 128, COL_BLACK, COL_WHITE, s, 11);
-				count0 = count;
-				timer_settime(timer_1s, 100);
+				timer_settime(timer_put, 10);		
 			}
 		}
 	}

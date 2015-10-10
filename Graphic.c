@@ -61,7 +61,7 @@ void RectFill(unsigned char *vram, int nXSize,unsigned char Color, int x0, int y
 /*绘制背景*/
 void DrawBack(char *vram, int nXSize, int nYSize)
 {
-	RectFill(vram,nXSize,COL_WHITE,0,0,nXSize,nYSize);
+	RectFill(vram,nXSize,COL_BLUE,0,0,nXSize,nYSize);
 	
 	RectFill(vram,nXSize,COL_BLACK,0,nYSize-30,nXSize,nYSize);//任务栏
 	RectFill(vram,nXSize,COL_DARK_GREY,40,nYSize-25,40,nYSize-5);//任务栏左边线
@@ -136,11 +136,12 @@ void Init_MouseCur(char *mouse, char cBackColor)
 		{
 			if (cursor[y][x] == '*') 
 			{
-				mouse[y * 16 + x] = COL_LIGHT_BLUE;
+				mouse[y * 16 + x] = COL_DARK_GREEN;
 			}
 			if (cursor[y][x] == 'O') 
 			{
-				mouse[y * 16 + x] = cBackColor;
+				//mouse[y * 16 + x] = cBackColor;
+				mouse[y * 16 + x] = COL_WHITE;
 			}
 			if (cursor[y][x] == '.') 
 			{
@@ -202,12 +203,12 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 	RectFill(buf, xsize, COL_BLACK, 0,         ysize - 1, xsize - 1, ysize - 1);
 	*/
 	RectFill(buf, xsize, COL_BLACK, 0,	0,xsize - 1, ysize-1);
-	RectFill(buf, xsize, COL_GREY, 3,	22,xsize - 4, ysize-3);
+	RectFill(buf, xsize, COL_GREY, 3,	22,xsize - 4, ysize-4);
 	
-	RectFill(buf, xsize, COL_GREY, 0,	0,0, ysize-1);
-	RectFill(buf, xsize, COL_GREY, 0,	0,xsize - 1, 0);
-	RectFill(buf, xsize, COL_GREY, xsize - 1,	0,xsize - 1, ysize-1);
-	RectFill(buf, xsize, COL_GREY, 0,	ysize-1,xsize - 1, ysize-2);
+	//RectFill(buf, xsize, COL_GREY, 0,	0,0, ysize-1);
+	//RectFill(buf, xsize, COL_GREY, 0,	0,xsize - 1, 0);
+	//RectFill(buf, xsize, COL_GREY, xsize - 1,	0,xsize - 1, ysize-1);
+	//RectFill(buf, xsize, COL_GREY, 0,	ysize-1,xsize - 1, ysize-2);
 	
 	/* 输出窗口的标题 */
 	PutFont_Asc(buf, xsize, 20, 3, COL_WHITE, title);

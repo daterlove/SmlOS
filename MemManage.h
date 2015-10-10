@@ -3,7 +3,7 @@
 /* 用于设置和清除CR0的NW与CD位,设置高速缓存用 */
 #define CR0_CACHE_DISABLE	0x60000000	
 /* FREEINFO结构的数量 大约是32KB */
-#define MEMMAN_FREES		4090	
+//#define MEMMAN_FREES		4090	
 
 unsigned int memtest(unsigned int start, unsigned int end);
 void memman_init(struct MEMMAN *man);

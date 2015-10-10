@@ -1,6 +1,7 @@
 #ifndef _VARIABLETYPE_H
 #define _VARIABLETYPE_H
 
+/*-----启动信息及鼠标结构体--------------------------------*/
 /*启动区信息 结构体*/
 struct BOOTINFO 
 {
@@ -20,7 +21,7 @@ struct BOOTINFO
 	int x, y, btn;
 };
 
-/*---------------------------------------------------------------*/
+/*-----内存管理相关------------------------------------------*/
 #define MEMMAN_FREES		4000	/* FREEINFO结构的数量*/
 
 /* 内存可用信息条目 
@@ -43,7 +44,7 @@ struct MEMMAN
 	struct FREEINFO free[MEMMAN_FREES];
 };
 
-/*---------------------------------------------------------------*/
+/*----图层管理相关------------------------------------------*/
 #define MAX_SHEETS		256			/* 图层的最大数 */
 /* 图层结构体 */
 /*
@@ -76,7 +77,7 @@ struct SHTCTL
 	struct SHEET sheets[MAX_SHEETS];
 };
 
-/*---------------------------------------------------------------*/
+/*-----时钟控制相关-----------------------------------------*/
 #define MAX_TIMER		500			/* 定时器最多可以有500个 */
 
 /* 定时器结构体 */
@@ -107,7 +108,11 @@ struct TIMERCTL
 	struct TIMER timers0[MAX_TIMER];
 };
 
-/*---------------------------------------------------------------*/
+/*----任务切换相关------------------------------------------*/
+#define MAX_TASKS		1000	/* 最大任务数 */
+#define TASK_GDT0		3		/* TSS描述符从GDT中下标为3处开始 */
+
+
 /* TSS结构 （Task-State Segment)*/
 struct TSS32 
 {
@@ -115,6 +120,33 @@ struct TSS32
 	int eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi;
 	int es, cs, ss, ds, fs, gs;
 	int ldtr, iomap;
+};
+
+/* 标识一个任务的数据结构 */
+/* 
+   sel		该任务的段选择子(GDT中的选择子)
+   flag		标识该任务的状态
+   priority	该任务的优先级
+   tss		TSS数据结构 用于任务切换时保存任务的寄存器及任务的配置信息
+*/
+struct TASK
+{
+	int sel, flags; 
+	int priority;
+	struct TSS32 tss;
+};
+
+/* 管理所有任务的结构体 */
+/* 
+   running 	运行中任务个数
+   now		正在运行的任务
+*/
+struct TASKCTL 
+{
+	int running; 
+	int now;
+	struct TASK *tasks[MAX_TASKS];
+	struct TASK tasks0[MAX_TASKS];
 };
 
 #endif
