@@ -171,37 +171,26 @@ void PutBlock(unsigned char *vram, int vxsize, int pxsize,
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 {
 	/* 这个数组定义的是窗口右上角那个叉叉图形 */
-	static char closebtn[14][16] = {
-		"OOOOOOOOOOOOOOO@",
-		"OQQQQQQQQQQQQQ$@",
-		"OQQQQQQQQQQQQQ$@",
-		"OQQQ@@QQQQ@@QQ$@",
-		"OQQQQ@@QQ@@QQQ$@",
-		"OQQQQQ@@@@QQQQ$@",
-		"OQQQQQQ@@QQQQQ$@",
-		"OQQQQQ@@@@QQQQ$@",
-		"OQQQQ@@QQ@@QQQ$@",
-		"OQQQ@@QQQQ@@QQ$@",
-		"OQQQQQQQQQQQQQ$@",
-		"OQQQQQQQQQQQQQ$@",
-		"O$$$$$$$$$$$$$$@",
-		"@@@@@@@@@@@@@@@@"
+	static char closebtn[13][20] = 
+	{
+		"QQQQQQQQQQQQQQQQQQQQ",
+		"QQQQQQQQQQQQQQQQQQQQ",
+		"QQQQQQQQQQQQQQQQQQQQ",
+		"QQQQQQ@@QQQQ@@QQQQQQ",
+		"QQQQQQQ@@QQ@@QQQQQQQ",
+		"QQQQQQQQ@@@@QQQQQQQQ",
+		"QQQQQQQQQ@@QQQQQQQQQ",
+		"QQQQQQQQ@@@@QQQQQQQQ",
+		"QQQQQQQ@@QQ@@QQQQQQQ",
+		"QQQQQQ@@QQQQ@@QQQQQQ",
+		"QQQQQQQQQQQQQQQQQQQQ",
+		"QQQQQQQQQQQQQQQQQQQQ",
+		"QQQQQQQQQQQQQQQQQQQQ"
 	};
 	int x, y;
 	char c;
+	
 	/* 先画出窗口的形状 */
-	/*
-	RectFill(buf, xsize, COL_DARK_GREY, 0,         0,         xsize - 1, 0        );
-	RectFill(buf, xsize, COL_BLUE, 1,         1,         xsize - 2, 1        );
-	RectFill(buf, xsize, COL_DARK_GREY, 0,         0,         0,         ysize - 1);
-	RectFill(buf, xsize, COL_BLUE, 1,         1,         1,         ysize - 2);
-	RectFill(buf, xsize, COL_GREY, xsize - 2, 1,         xsize - 2, ysize - 2);
-	RectFill(buf, xsize, COL_BLACK, xsize - 1, 0,         xsize - 1, ysize - 1);
-	RectFill(buf, xsize, COL_GREEN, 2,         2,         xsize - 3, ysize - 3);
-	RectFill(buf, xsize, COL_DARK_GREY, 3,         3,         xsize - 4, 20       );
-	RectFill(buf, xsize, COL_GREY, 1,         ysize - 2, xsize - 2, ysize - 2);
-	RectFill(buf, xsize, COL_BLACK, 0,         ysize - 1, xsize - 1, ysize - 1);
-	*/
 	RectFill(buf, xsize, COL_BLACK, 0,	0,xsize - 1, ysize-1);
 	RectFill(buf, xsize, COL_GREY, 3,	22,xsize - 4, ysize-4);
 	
@@ -213,30 +202,41 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
 	/* 输出窗口的标题 */
 	PutFont_Asc(buf, xsize, 20, 3, COL_WHITE, title);
 	/* 画出右上角的叉叉 */
-	for (y = 0; y < 14; y++) 
+	for (y = 0; y < 13; y++) 
 	{
-		for (x = 0; x < 16; x++) 
+		for (x = 0; x < 20; x++) 
 		{
 			c = closebtn[y][x];
 			if (c == '@') 
 			{
-				c = COL_BLACK;
-			} 
-			else if (c == '$') 
-			{
-				c = COL_RED;
+				c = COL_WHITE;
 			} 
 			else if (c == 'Q') 
 			{
 				c = COL_RED;
 			} 
-			else 
-			{
-				c = COL_RED;
-			}
-			buf[(3 + y) * xsize + (xsize - 19 + x)] = c;
+
+			buf[(4 + y) * xsize + (xsize - 25 + x)] = c;
 		}
 	}
+	return;
+}
+
+/* 创建窗口的文本框 */
+void make_window_edit(unsigned char *buf, int xsize, int ysize)
+{
+	int nX1=8;
+	int nY1=26;
+	int nX2=xsize - 8;
+	int nY2=ysize - 8;
+
+	RectFill(buf, xsize, COL_WHITE,nX1,nY1,nX2,nY2);
+	/*画文本框 边框*/
+	RectFill(buf, xsize, COL_DARK_GREY, nX1,nY1,nX2,nY1);
+	RectFill(buf, xsize, COL_DARK_GREY, nX1,nY1,nX1,nY2);
+	RectFill(buf, xsize, COL_DARK_GREY, nX1,nY2,nX2,nY2);
+	RectFill(buf, xsize, COL_DARK_GREY, nX2,nY1,nX2,nY2);
+	
 	return;
 }
 

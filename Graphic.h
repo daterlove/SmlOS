@@ -19,7 +19,8 @@ void Init_MouseCur(char *mouse, char cBackColor);
 void PutBlock(unsigned char *vram, int vxsize, int pxsize,int pysize, int px0, int py0, char *buf, int bxsize);
 /* 创建窗口图形 */
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
-
+/* 创建窗口的文本框 */
+void make_window_edit(unsigned char *buf, int xsize, int ysize);
 /* 输出文字到指定图层*/
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 

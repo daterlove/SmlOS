@@ -104,6 +104,7 @@ void HariMain(void)
 	Init_MouseCur(Buf_Mouse, COL_BACK_BLUE);		/* 初始化鼠标图形 */
 	DrawBack(Buf_Back, nXSize, nYSize);	/* 绘制背景 */
 	make_window8(Buf_Win, 300, 200, "Window");	/* 绘制窗口图形 */
+	make_window_edit(Buf_Win, 300, 200);	/* 绘制窗口图形 */
 	make_window8(Buf_TaskWin[0], 170, 75, "Task1");	/* 绘制窗口图形 */
 	make_window8(Buf_TaskWin[1], 170, 75, "Task2");	/* 绘制窗口图形 */
 	
@@ -277,7 +278,7 @@ void HariMain(void)
 }
 
 
-/* 任务B */
+/* 任务B(Task1)*/
 void task_b_main(struct SHEET *sht_back)
 {
 	struct FIFO8 fifo;
@@ -292,7 +293,7 @@ void task_b_main(struct SHEET *sht_back)
 	timer_init(timer_put, &fifo, 1);
 	timer_settime(timer_put, 100);
 	
-	putfonts8_asc_sht(sht_back, 30, 28,COL_BLACK,COL_APPLE_GRREN, " priority:1", 14);//在图层上显示文字
+	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:1ms", 16);//在图层上显示文字
 	
 	for (;;) 
 	{
@@ -309,16 +310,16 @@ void task_b_main(struct SHEET *sht_back)
 			io_sti();
 			if (i == 1) 
 			{
-				sprintf(s, "%9d", count);
-				putfonts8_asc_sht(sht_back, 30, 50,COL_BLACK,COL_APPLE_GRREN, s, 14);//在图层上显示文字
+				sprintf(s, " Count:%d", count);
+				putfonts8_asc_sht(sht_back, 22, 50,COL_BLACK,COL_APPLE_GRREN, s, 16);//在图层上显示文字
 				
-				timer_settime(timer_put, 10);		
+				timer_settime(timer_put, 20);		
 			}
 		}
 	}
 	
 }
-/* 任务B */
+/* 任务B(Task2)*/
 void task_b_main1(struct SHEET *sht_back)
 {
 	struct FIFO8 fifo;
@@ -333,7 +334,7 @@ void task_b_main1(struct SHEET *sht_back)
 	timer_init(timer_put, &fifo, 1);
 	timer_settime(timer_put, 100);
 	
-	putfonts8_asc_sht(sht_back, 30, 28,COL_BLACK,COL_APPLE_GRREN, " priority:2", 14);//在图层上显示文字
+	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:2ms", 16);//在图层上显示文字
 	
 	for (;;) 
 	{
@@ -350,10 +351,10 @@ void task_b_main1(struct SHEET *sht_back)
 			io_sti();
 			if (i == 1) 
 			{
-				sprintf(s, "%9d", count);
-				putfonts8_asc_sht(sht_back, 30, 50,COL_BLACK,COL_APPLE_GRREN, s, 14);//在图层上显示文字
+				sprintf(s, " Count:%d", count);
+				putfonts8_asc_sht(sht_back, 22, 50,COL_BLACK,COL_APPLE_GRREN, s, 16);//在图层上显示文字
 				
-				timer_settime(timer_put, 10);		
+				timer_settime(timer_put, 20);		
 			}
 		}
 	}
