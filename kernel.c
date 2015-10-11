@@ -356,7 +356,7 @@ void task_win_main(struct SHEET *sht_back)
 				i = fifo8_get(&fifo_put);
 				io_sti();
 				
-				if(nTextSel<126)//字符个数
+				if(nTextSel<128)//字符个数
 				{
 					szChar[0]=*(szText+nTextSel);
 					szChar[1]=0;
