@@ -41,6 +41,7 @@ struct TASK *task_init(struct MEMMAN *memman)
 	return task;
 }
 
+/*任务分配函数*/
 struct TASK *task_alloc(void)
 {
 	int i;
@@ -73,6 +74,7 @@ struct TASK *task_alloc(void)
 	return 0; /*全部在使用中*/
 }
 
+/*设置任务运行状态*/
 void task_run(struct TASK *task, int priority)
 {
 	if (priority > 0) 
@@ -88,6 +90,7 @@ void task_run(struct TASK *task, int priority)
 	return;
 }
 
+/*任务切换函数*/
 void task_switch(void)
 {
 	struct TASK *task;
@@ -108,6 +111,7 @@ void task_switch(void)
 	return;
 }
 
+/*任务休眠函数*/
 void task_sleep(struct TASK *task)
 {
 	int i;
