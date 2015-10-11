@@ -148,5 +148,10 @@ struct TASKCTL
 	struct TASK *tasks[MAX_TASKS];
 	struct TASK tasks0[MAX_TASKS];
 };
-
+/*----¥∞ÃÂ–≈œ¢------------------------------------------*/
+struct WINDOW_INFO
+{
+	int nXSize,nYSize;
+	char title[20];
+};
 #endif
