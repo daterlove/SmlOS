@@ -21,6 +21,29 @@ struct BOOTINFO
 	int x, y, btn;
 };
 
+/*-----FIFO缓冲区结构体 --------------------------------*/
+struct FIFO8
+{						
+	unsigned char *buf;	/* 缓冲区指针 */
+	int p;				/* p 下一个数据写入位置*/
+	int q; 				/*q 下一个数据读出位置*/
+	int size; 			/*size 缓冲区的总字节数	*/
+	int free; 			/*free 缓冲区的空闲字节数*/
+	int flags;			/*flags	记录缓冲区是否溢出*/
+};
+
+/* 32bit的队列缓冲区结构体 */
+struct FIFO32 
+{
+	int *buf;						/* 缓冲区指针 */
+	int p;				/* p 下一个数据写入位置*/
+	int q; 				/*q 下一个数据读出位置*/
+	int size; 			/*size 缓冲区的总字节数	*/
+	int free; 			/*free 缓冲区的空闲字节数*/
+	int flags;			/*flags	记录缓冲区是否溢出*/
+	struct TASK *task;	/* 当队列缓冲区写入数据时需要唤醒的任务 */
+};
+
 /*-----内存管理相关------------------------------------------*/
 #define MEMMAN_FREES		4000	/* FREEINFO结构的数量*/
 
@@ -155,4 +178,6 @@ struct WINDOW_INFO
 	char title[20];
 	struct TASK task;
 };
+
+
 #endif

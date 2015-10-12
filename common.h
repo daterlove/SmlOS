@@ -4,11 +4,11 @@
 #include <stdio.h>
 #include "VariableType.h"//变量类型定义，必须放在前面，否则出错
 
+
 #include "Color_Define.h"
+#include "FIFO.h"
 #include "GDT_IDT.h"
 #include "Graphic.h"
-
-#include "FIFO.h"
 #include "Key_Mouse.h"
 #include "MemManage.h"
 #include "SheetManage.h"
@@ -19,7 +19,6 @@
 #define ADR_BOOTINFO	0x00000ff0	/* 存放启动信息的地址 */
 #define MEMMAN_ADDR			0x003c0000	/* MEMMAN结构将被存放在该地址处 */
 
-extern struct FIFO8 KeyFifo, MouseFifo;
 
 /*AsmFunc.nas 里面 的汇编函数*/
 void io_hlt(void);

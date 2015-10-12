@@ -13,7 +13,7 @@ struct TIMER *timer_alloc(void);
 /* 释放timer所指向的定时器 */
 void timer_free(struct TIMER *timer);
 /* 定时器结构的初始化 */
-void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data);
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, unsigned char data);
 /* 定时器的设定 */
 void timer_settime(struct TIMER *timer, unsigned int timeout);
 

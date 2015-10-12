@@ -2,7 +2,8 @@
 
 extern struct TIMERCTL timerctl;
 extern struct TIMER *task_timer;
-
+extern int nKeyData0,nMouseData0,nTimeData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区）  
+extern struct FIFO32 SysFifo;
 /* 初始化PIC */
 void Init_PIC(void)
 {
@@ -32,7 +33,7 @@ void inthandler21(int *esp)
 	unsigned char data;
 	io_out8(PIC0_OCW2, 0x61);	/* 通知IRQ1已经受理完毕 */
 	data = io_in8(PORT_KEYDAT);	/* 从8042的输出缓冲区中读出数据, 若不读出, 则8042不再接收数据 */
-	fifo8_put(&KeyFifo, data);	/* 将接收到的数据存入键盘缓冲区队列中 */
+	fifo32_put(&SysFifo, data+nKeyData0);	/* 将接收到的数据存入键盘缓冲区队列中 */
 
 	return;
 }
@@ -45,7 +46,7 @@ void inthandler2c(int *esp)
 	io_out8(PIC1_OCW2, 0x64);	/* 通知PIC1  IRQ12已经受理完毕 */
 	io_out8(PIC0_OCW2, 0x62);	/* 通知PIC0  IRQ2已经受理完毕 */
 	data = io_in8(PORT_KEYDAT);	/* 从8042的输出缓冲区中读出数据, 若不读出, 则8042不再接收数据 */
-	fifo8_put(&MouseFifo, data);/* 将接收到的数据存入鼠标缓冲区队列中 */
+	fifo32_put(&SysFifo, data+nMouseData0);/* 将接收到的数据存入鼠标缓冲区队列中 */
 	return;
 }
 
@@ -94,7 +95,7 @@ void inthandler20(int *esp)
 		/* 判断产生中断的定时器是不是 任务切换定时器 mk_timer */
 		if ( timerctl.timers[i]!= task_timer)
 		{		
-			fifo8_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);			
+			fifo32_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);			
 		} 
 		else //是任务切换定时器
 		{			

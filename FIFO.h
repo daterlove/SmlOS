@@ -3,28 +3,7 @@
 
 #define FLAGS_OVERRUN		0x0001			/* 缓冲区溢出标志 */
 
-/* FIFO缓冲区结构体 */
-struct FIFO8
-{						
-	unsigned char *buf;	/* 缓冲区指针 */
-	int p;				/* p 下一个数据写入位置*/
-	int q; 				/*q 下一个数据读出位置*/
-	int size; 			/*size 缓冲区的总字节数	*/
-	int free; 			/*free 缓冲区的空闲字节数*/
-	int flags;			/*flags	记录缓冲区是否溢出*/
-};
 
-/* 32bit的队列缓冲区结构体 */
-struct FIFO32 
-{
-	int *buf;						/* 缓冲区指针 */
-	int p;				/* p 下一个数据写入位置*/
-	int q; 				/*q 下一个数据读出位置*/
-	int size; 			/*size 缓冲区的总字节数	*/
-	int free; 			/*free 缓冲区的空闲字节数*/
-	int flags;			/*flags	记录缓冲区是否溢出*/
-	struct TASK *task;	/* 当队列缓冲区写入数据时需要唤醒的任务 */
-};
 
 /* 缓冲区初始化函数 
 初始化缓冲区结构体fifo, size表示缓冲区大小, buf表示缓冲区地址
@@ -44,5 +23,10 @@ int fifo8_get(struct FIFO8 *fifo);
 
 /* 返回缓冲区结构体fifo中的缓冲区中共有多少字节的数据 */
 int fifo8_status(struct FIFO8 *fifo);
+
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf, struct TASK *task);
+int fifo32_put(struct FIFO32 *fifo, int data);
+int fifo32_get(struct FIFO32 *fifo);
+int fifo32_status(struct FIFO32 *fifo);
 
 #endif

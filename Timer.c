@@ -49,7 +49,7 @@ void timer_free(struct TIMER *timer)
 }
 
 /* 定时器结构的初始化 */
-void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data)
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, unsigned char data)
 {
 	timer->fifo = fifo;
 	timer->data = data;
