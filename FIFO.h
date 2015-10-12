@@ -14,6 +14,18 @@ struct FIFO8
 	int flags;			/*flags	记录缓冲区是否溢出*/
 };
 
+/* 32bit的队列缓冲区结构体 */
+struct FIFO32 
+{
+	int *buf;						/* 缓冲区指针 */
+	int p;				/* p 下一个数据写入位置*/
+	int q; 				/*q 下一个数据读出位置*/
+	int size; 			/*size 缓冲区的总字节数	*/
+	int free; 			/*free 缓冲区的空闲字节数*/
+	int flags;			/*flags	记录缓冲区是否溢出*/
+	struct TASK *task;	/* 当队列缓冲区写入数据时需要唤醒的任务 */
+};
+
 /* 缓冲区初始化函数 
 初始化缓冲区结构体fifo, size表示缓冲区大小, buf表示缓冲区地址
  */

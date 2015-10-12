@@ -148,10 +148,11 @@ struct TASKCTL
 	struct TASK *tasks[MAX_TASKS];
 	struct TASK tasks0[MAX_TASKS];
 };
-/*----窗体信息------------------------------------------*/
+/*----窗体任务信息------------------------------------------*/
 struct WINDOW_INFO
 {
 	int nXSize,nYSize;
 	char title[20];
+	struct TASK task;
 };
 #endif
