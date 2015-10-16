@@ -1,9 +1,13 @@
 #include "common.h"
 
 extern struct TIMERCTL timerctl;
+extern struct TASKCTL *taskctl;
+
 extern struct TIMER *task_timer;
 extern int nKeyData0,nMouseData0,nTimeData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区）  
 extern struct FIFO32 SysFifo;
+extern struct TASK *task_hlt;
+
 /* 初始化PIC */
 void Init_PIC(void)
 {
@@ -119,7 +123,15 @@ void inthandler20(int *esp)
 	{
 		timerctl.next = 0xffffffff;
 	}
-	
+	//-------------------------------------------------------------------
+	/*
+	if(taskctl->running<=1)
+	{
+		task_run(task_hlt, 10);
+		farjmp(0, task_hlt->sel);
+	}
+	*/
+	//-------------------------------------------------------------------
 	if (ts != 0) /* 任务切换*/
 	{			
 		task_switch();

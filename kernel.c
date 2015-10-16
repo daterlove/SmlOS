@@ -2,6 +2,7 @@
 
 struct FIFO32 SysFifo;
 int nKeyData0,nMouseData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区） 
+struct TASK *task_hlt;
 
 #define PIT_CTRL	0x0043
 #define PIT_CNT0	0x0040
@@ -13,7 +14,7 @@ void task_b_main(struct SHEET *sht_back);
 void task_b_main1(struct SHEET *sht_back);
 /* Window任务*/
 void task_win_main(struct SHEET *sht_back);
-
+void task_kernel_hlt();
 /*备注：可能由于测试虚拟机CPU调度策略不同，VM虚拟机 io_stihlt()操作时，
 	CPU休眠，count并不自加，而Qemu不会*/
 	
@@ -23,7 +24,7 @@ void HariMain(void)
 /*-----相关变量定义----*/	
 	struct BOOTINFO *stBootInfo= (struct BOOTINFO *) 0x0ff0;//获取启动时候保存的信息
 	char s[100];//输出缓冲区
-	int szTemp[40], KeyBuf[32], MouseBuf[128];
+	int szTemp[40]; //KeyBuf[32], MouseBuf[128];
 	int SysBuf[256];
 	struct MOUSE_DEC mdec;
 	
@@ -72,6 +73,8 @@ void HariMain(void)
 	/* 这段内存是4K~636K-1,这段内存是4K~636K-1,映像刚开始载入内存的内容，包括引导程序那部分*/
 	memman_free(memman, 0x00001000, 0x0009e000); 	/* 0x00001000 - 0x0009efff */
 	memman_free(memman, 0x00400000, nMemMaxSize - 0x00400000);	/* 4M~内存实际大小 */
+
+
 	
 /*----图形操作----*/
 	shtctl = shtctl_init(memman,vram,nXSize,nYSize);	/* 初始化图层管理结构 */
@@ -113,6 +116,44 @@ void HariMain(void)
 	sheet_updown(Sht_TaskWin[1],   2);	
 	sheet_updown(Sht_Win,   -1);		/* 调整默认窗口 */
 	sheet_updown(Sht_Mouse, 4);		/* 并且会显示背景与鼠标图层 */
+/*---任务切换相关---*/
+	int i;
+	/* 任务切换初始化(*/
+	task_a = task_init(memman);//task_a 是内核任务
+	fifo32_init(&SysFifo, 256, SysBuf,task_a);
+
+	task_run(task_a, -1, 2);		/* 设置任务a的level和优先级 */
+	
+	for(i=0;i<3;i++)
+	{
+		task_b[i]=task_alloc();//分配一个任务
+	
+		task_b[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;	/* 创建任务B的堆栈，64K */;
+		
+		task_b[i]->tss.es = 1 * 8;
+		task_b[i]->tss.cs = 2 * 8;
+		task_b[i]->tss.ss = 1 * 8;
+		task_b[i]->tss.ds = 1 * 8;
+		task_b[i]->tss.fs = 1 * 8;
+		task_b[i]->tss.gs = 1 * 8;
+	}
+	
+	task_b[0]->tss.eip = (int) &task_b_main;		/* 设置任务B的寄存器 */
+	task_b[1]->tss.eip = (int) &task_b_main1;		/* 设置任务B的寄存器 */
+	task_b[2]->tss.eip = (int) &task_win_main;		/* 设置任务Window的寄存器 */
+	task_hlt->tss.eip = (int) &task_kernel_hlt;		/* 设置任务Window的寄存器 */
+	/* 先将task_b_esp + 4转换成int类型的指针  即(int *) (task_b_esp + 4) */
+	/* 再将(int) sht_back赋值到该地址处*((int *) (task_b_esp + 4)) */
+	*((int *) (task_b[0]->tss.esp + 4)) = (int) Sht_TaskWin[0];
+	*((int *) (task_b[1]->tss.esp + 4)) = (int) Sht_TaskWin[1];
+	*((int *) (task_b[2]->tss.esp + 4)) = (int) Sht_Win;
+	
+	//task_run(task_a, 10);//分配给内核最高优先级
+	
+	//task_run(task_b[0], 1);			
+	//task_run(task_b[1], 2);	
+	//task_run(task_b[2], 2);
+	//task_run(task_hlt, 1);
 	
 /*----显示系统信息----*/
 	//sprintf(s, "(%3d, %3d)", mx, my);
@@ -125,46 +166,12 @@ void HariMain(void)
 	sprintf(szTemp, "MemFree:%d KB", memman_total(memman) /1024);	
 	putfonts8_asc_sht(Sht_Back, 0, 68,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
 	
-/*---任务切换相关---*/
-	int i;
-	/* 任务切换初始化(*/
-	task_a = task_init(memman);//task_a 是内核任务
-	fifo32_init(&SysFifo, 256, SysBuf,0);
-	for(i=0;i<3;i++)
-	{
-		task_b[i]=task_alloc();//分配一个任务
-	
-		task_b[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;	/* 创建任务B的堆栈，64K */;
-		
-	
-		task_b[i]->tss.es = 1 * 8;
-		task_b[i]->tss.cs = 2 * 8;
-		task_b[i]->tss.ss = 1 * 8;
-		task_b[i]->tss.ds = 1 * 8;
-		task_b[i]->tss.fs = 1 * 8;
-		task_b[i]->tss.gs = 1 * 8;
-	}
-	
-	task_b[0]->tss.eip = (int) &task_b_main;		/* 设置任务B的寄存器 */
-	task_b[1]->tss.eip = (int) &task_b_main1;		/* 设置任务B的寄存器 */
-	task_b[2]->tss.eip = (int) &task_win_main;		/* 设置任务Window的寄存器 */
-	
-	/* 先将task_b_esp + 4转换成int类型的指针  即(int *) (task_b_esp + 4) */
-	/* 再将(int) sht_back赋值到该地址处*((int *) (task_b_esp + 4)) */
-	*((int *) (task_b[0]->tss.esp + 4)) = (int) Sht_TaskWin[0];
-	*((int *) (task_b[1]->tss.esp + 4)) = (int) Sht_TaskWin[1];
-	*((int *) (task_b[2]->tss.esp + 4)) = (int) Sht_Win;
-	
-	task_run(task_a, 20);//分配给内核最高优先级
-	
-	//task_run(task_b[0], 1);			
-	//task_run(task_b[1], 2);	
-	//task_run(task_b[2], 2);
-	
+
 /*----定时器设置----*/	
 	timer = timer_alloc();					/* 创建定时器 */
 	timer_init(timer, &SysFifo, 100);		/* 定时器初始化 */
 	timer_settime(timer, 100);				/* 定时器设置 */	
+	
 	
 /*---内核循环---*/	
 	for (;;) 
@@ -174,15 +181,14 @@ void HariMain(void)
 		/* 系统缓冲区没有数据 */
 		if(fifo32_status(&SysFifo)== 0) 
 		{	
-	
-			io_stihlt();	/* 开中断并待机 直到下一次中断来临 */
-			//io_sti();
+			//io_stihlt();	/* 开中断并待机 直到下一次中断来临 */
+			task_sleep(task_a);//休眠内核任务，在fifo有数据的时候才被重新激活
+			io_sti();
 		} 
 		else 
 		{	
 			i = fifo32_get(&SysFifo);
 			io_sti();//打开中断
-			
 		
 			if(nKeyData0<=i && i<=nKeyData0+0xFF)/*键盘缓冲区有数据 */
 			{		
@@ -248,24 +254,25 @@ void HariMain(void)
 				sprintf(s, "%03d Sec", timerctl.count/100);
 				putfonts8_asc_sht(Sht_Back, nXSize-60, nYSize-23,COL_WHITE,COL_BLACK, s, 9);//在图层上显示文字
 				
-				if(timerctl.count/100==3)//3秒时候开始
+				if(timerctl.count/100==2)//3秒时候开始
 				{
-					task_run(task_b[0], 1);			
-					task_run(task_b[1], 2);
+					task_run(task_b[0], 2,1);			
+					task_run(task_b[1], 2,2);
 				}
-				else if(timerctl.count/100==8)//3秒时候停止
+				else if(timerctl.count/100==7)//3秒时候停止
 				{
 					task_sleep(task_b[0]);
 					task_sleep(task_b[1]);
-					sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */
+					sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
 					
-					task_run(task_b[2], 5);
+					task_run(task_b[2],2,2);
 				}
 
 				timer_settime(timer, 100);				/* 定时器设置 */	
 
 			}
 		}	
+		//task_sleep(task_a);
 	}
 }
 
@@ -273,30 +280,40 @@ void HariMain(void)
 /* Window任务*/
 void task_win_main(struct SHEET *sht_back)
 {
-	struct FIFO32 fifo,fifo_put;
-	struct TIMER *timer_text_Cur,*timer_put;
+	//struct FIFO32 fifo,fifo_put;
+	struct FIFO32 MsgFifo;//任务消息队列
 	
-	int nXSize=450;
-	int nYSize=300;
+	struct TIMER *timer_text_Cur;//光标闪烁定时器
+	struct TIMER *timer_put;//介绍文字输出定时器
+	
+	struct TASK *task = task_now();//当前任务，即本身
+	
+	int nXSize=450;//窗体宽度
+	int nYSize=300;//窗体高度
 
-	int nCurTime=20;
-	int i, fifobuf[128],fifo_put_buf[128];
+	int nCurTime=30;//光标闪烁间隔
+	int nPutTime=3;//介绍文字输出间隔
+	
+	int MsgFifo_buf[128];
+	int i,data;//fifobuf[128],fifo_put_buf[128];
 		
 	int nPos_CurX=12;
 	int nPos_CurY=30;
 	
-	char szChar[2];//存取单个字符
-	int nTextSel=0;
+	char szChar[2];//存取单个字符，临时变量
+	int nTextSel=0;//正在输出的文字位置
 	char *szText="          Welcome to use SmlOS.-       If you hava any question.-       You can contact me.-       DaterLove-       QQ:306463830";
 	
-	fifo32_init(&fifo, 128, fifobuf,0);
-	fifo32_init(&fifo_put, 128, fifo_put_buf,0);
+	//fifo32_init(&fifo, 128, fifobuf,0);
+	//fifo32_init(&fifo_put, 128, fifo_put_buf,0);
 	
-	timer_text_Cur = timer_alloc();		
+	fifo32_init(&MsgFifo, 128, MsgFifo_buf,task);
+	
+	timer_text_Cur = timer_alloc();	
 	timer_put = timer_alloc();	
 	
-	timer_init(timer_text_Cur, &fifo, 1);
-	timer_init(timer_put, &fifo_put, 2);
+	timer_init(timer_text_Cur, &MsgFifo, 1);
+	timer_init(timer_put, &MsgFifo, 2);
 	
 	timer_settime(timer_text_Cur, nCurTime);
 	timer_settime(timer_put, 50);
@@ -305,43 +322,37 @@ void task_win_main(struct SHEET *sht_back)
 	
 	for (;;) 
 	{
-
 		io_cli();
-		
-		if (fifo32_status(&fifo)+fifo8_status(&fifo_put) == 0) 
+		if (fifo32_status(&MsgFifo)== 0) 
 		{
+			task_sleep(task);					/* 睡眠自己 */
 			io_sti();
 		} 
 		else 
 		{
 			
-			if((fifo32_status(&fifo) != 0))
+			i = fifo32_get(&MsgFifo);
+			io_sti();//打开中断
+			
+			if (i == 1)//光标定时器
 			{
-				i = fifo8_get(&fifo);
-				io_sti();
-				if (i == 1) 
-				{
 					/*光标绘制 黑色*/
-					RectFill(sht_back->buf, sht_back->bxsize, COL_PURPLE, nPos_CurX, nPos_CurY, nPos_CurX+1 , nPos_CurY + 16);
-					sheet_refresh(sht_back, nPos_CurX, nPos_CurY, nPos_CurX+10+1 , nPos_CurY + 16+1);
-					timer_init(timer_text_Cur, &fifo, 0);
-					timer_settime(timer_text_Cur, nCurTime);	
+				RectFill(sht_back->buf, sht_back->bxsize, COL_PURPLE, nPos_CurX, nPos_CurY, nPos_CurX+1 , nPos_CurY + 16);
+				sheet_refresh(sht_back, nPos_CurX, nPos_CurY, nPos_CurX+10+1 , nPos_CurY + 16+1);
+				timer_init(timer_text_Cur, &MsgFifo, 0);
+				timer_settime(timer_text_Cur, nCurTime);	
 
-				}
-				else if(i==0)
-				{
-					/*光标绘制 白色*/
-					RectFill(sht_back->buf, sht_back->bxsize, COL_WHITE, nPos_CurX, nPos_CurY, nPos_CurX+1 , nPos_CurY + 16);
-					sheet_refresh(sht_back, nPos_CurX, nPos_CurY, nPos_CurX+10+1 , nPos_CurY +16+1);
-					timer_init(timer_text_Cur, &fifo, 1);
-					timer_settime(timer_text_Cur, nCurTime);
-				}
 			}
-			else if((fifo32_status(&fifo_put) != 0))
+			else if(i==0)//光标定时器
 			{
-				i = fifo32_get(&fifo_put);
-				io_sti();
-				
+				/*光标绘制 白色*/
+				RectFill(sht_back->buf, sht_back->bxsize, COL_WHITE, nPos_CurX, nPos_CurY, nPos_CurX+1 , nPos_CurY + 16);
+				sheet_refresh(sht_back, nPos_CurX, nPos_CurY, nPos_CurX+10+1 , nPos_CurY +16+1);
+				timer_init(timer_text_Cur, &MsgFifo, 1);
+				timer_settime(timer_text_Cur, nCurTime);
+			}
+			else if((i==2))//文字输出定时器
+			{
 				if(nTextSel<128)//字符个数
 				{
 					szChar[0]=*(szText+nTextSel);
@@ -377,11 +388,8 @@ void task_win_main(struct SHEET *sht_back)
 						}
 										
 					}
-					
-					
-					
-					
-					timer_settime(timer_put, 2);
+
+					timer_settime(timer_put, nPutTime);
 				}
 			}
 			
@@ -402,7 +410,7 @@ void task_b_main(struct SHEET *sht_back)
 	
 	timer_put = timer_alloc();		
 	timer_init(timer_put, &fifo, 1);
-	timer_settime(timer_put, 100);
+	timer_settime(timer_put, 50);
 	
 	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:1ms", 16);//在图层上显示文字
 	
@@ -425,7 +433,7 @@ void task_b_main(struct SHEET *sht_back)
 				sprintf(s, " Count:%d", count);
 				putfonts8_asc_sht(sht_back, 22, 50,COL_BLACK,COL_APPLE_GRREN, s, 16);//在图层上显示文字
 				
-				timer_settime(timer_put, 20);		
+				timer_settime(timer_put, 10);		
 			}
 		}
 	}
@@ -444,7 +452,7 @@ void task_b_main1(struct SHEET *sht_back)
 	
 	timer_put = timer_alloc();		
 	timer_init(timer_put, &fifo, 1);
-	timer_settime(timer_put, 100);
+	timer_settime(timer_put, 50);
 	
 	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:2ms", 16);//在图层上显示文字
 	
@@ -467,9 +475,19 @@ void task_b_main1(struct SHEET *sht_back)
 				sprintf(s, " Count:%d", count);
 				putfonts8_asc_sht(sht_back, 22, 50,COL_BLACK,COL_APPLE_GRREN, s, 16);//在图层上显示文字
 				
-				timer_settime(timer_put, 20);		
+				timer_settime(timer_put, 10);		
 			}
 		}
+	}
+	
+}
+
+/* 内核闲置任务*/
+void task_kernel_hlt()
+{
+	for(;;)
+	{
+		io_hlt();
 	}
 	
 }

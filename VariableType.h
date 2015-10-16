@@ -134,7 +134,8 @@ struct TIMERCTL
 /*----任务切换相关------------------------------------------*/
 #define MAX_TASKS		1000	/* 最大任务数 */
 #define TASK_GDT0		3		/* TSS描述符从GDT中下标为3处开始 */
-
+#define MAX_TASKS_LV	100		/* 每个LEVEL最多允许建立100个任务 */
+#define MAX_TASKLEVELS	10		/* 最多允许建立10个LEVEL */
 
 /* TSS结构 （Task-State Segment)*/
 struct TSS32 
@@ -149,28 +150,46 @@ struct TSS32
 /* 
    sel		该任务的段选择子(GDT中的选择子)
    flag		标识该任务的状态
-   priority	该任务的优先级
+   level	任务运行运行层上(越低层优先运行)
+   priority	该任务的优先级（运行时间-ms单位）
    tss		TSS数据结构 用于任务切换时保存任务的寄存器及任务的配置信息
 */
 struct TASK
 {
 	int sel, flags; 
+	int level;
 	int priority;
 	struct TSS32 tss;
 };
 
-/* 管理所有任务的结构体 */
+/* 任务的分层结构*/
 /* 
-   running 	运行中任务个数
-   now		正在运行的任务
-*/
-struct TASKCTL 
+   running	该层中有多少个任务在运行
+   now		该层中正在运行的是哪个任务
+   tasks	TASK的指针数组,和sheets类似,数组中的元素按照顺序排放
+ */
+struct TASKLEVEL 
 {
 	int running; 
-	int now;
-	struct TASK *tasks[MAX_TASKS];
+	int now; 
+	struct TASK *tasks[MAX_TASKS_LV];
+};
+
+/* 管理所有任务的结构体 */
+/* 
+   now_lv	当前任务运行在哪层上（lv==level）
+   lv_change	下次任务切换时,是否需要修改level
+   level[]	所有的level都定义在该数组中
+   tasks0	注意！系统中的任务虽然分属不同的层，但是任何标识一个任务的结构体都是在这个数组中的
+ */
+struct TASKCTL 
+{
+	int now_lv; 
+	char lv_change; 
+	struct TASKLEVEL level[MAX_TASKLEVELS];
 	struct TASK tasks0[MAX_TASKS];
 };
+
 /*----窗体任务信息------------------------------------------*/
 struct WINDOW_INFO
 {
