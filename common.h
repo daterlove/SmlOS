@@ -45,6 +45,9 @@ void io_out32(int port, int data);	// 将32位的data输出到port端口
 int io_load_eflags(void);			// 将EFLAGS寄存器的内容返回
 void io_store_eflags(int eflags);	//	将EFLAGS寄存器的内容保存
 
+int load_cr0(void);
+void store_cr0(int cr0);
+ 
 void load_tr(int tr);				//设置TR寄存器的值
 
 unsigned int memtest_sub(unsigned int start, unsigned int end);//内存检查函数

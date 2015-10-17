@@ -61,12 +61,13 @@ void RectFill(unsigned char *vram, int nXSize,unsigned char Color, int x0, int y
 /*绘制背景*/
 void DrawBack(char *vram, int nXSize, int nYSize)
 {
-	RectFill(vram,nXSize,COL_BLUE,0,0,nXSize,nYSize);
+	RectFill(vram,nXSize,COL_BLUE,0,0,nXSize,nYSize);//背景
 	
 	RectFill(vram,nXSize,COL_BLACK,0,nYSize-30,nXSize,nYSize);//任务栏
-	RectFill(vram,nXSize,COL_DARK_GREY,40,nYSize-25,40,nYSize-5);//任务栏左边线
-	PutFont_Asc(vram, nXSize, nXSize+10, nYSize-23,COL_GREEN, "SML"); // 左边图标
-	PutFont_Asc(vram, nXSize, nXSize+11, nYSize-23,COL_GREEN, "SML");
+	RectFill(vram,nXSize,COL_DARK_GREY,43,nYSize-25,43,nYSize-5);//任务栏左边线
+	
+	PutFont_Asc(vram, nXSize, nXSize+13, nYSize-23,COL_GREEN, "SML"); // 左边图标
+	PutFont_Asc(vram, nXSize, nXSize+14, nYSize-23,COL_GREEN, "SML");
 	
 	RectFill(vram,nXSize,COL_DARK_GREY,nXSize-70,nYSize-25,nXSize-70,nYSize-5);//任务栏右边线
 	

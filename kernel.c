@@ -2,7 +2,7 @@
 
 struct FIFO32 SysFifo;
 int nKeyData0,nMouseData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区） 
-struct TASK *task_hlt;
+
 
 #define PIT_CTRL	0x0043
 #define PIT_CNT0	0x0040
@@ -14,7 +14,7 @@ void task_b_main(struct SHEET *sht_back);
 void task_b_main1(struct SHEET *sht_back);
 /* Window任务*/
 void task_win_main(struct SHEET *sht_back);
-void task_kernel_hlt();
+
 /*备注：可能由于测试虚拟机CPU调度策略不同，VM虚拟机 io_stihlt()操作时，
 	CPU休眠，count并不自加，而Qemu不会*/
 	
@@ -24,7 +24,7 @@ void HariMain(void)
 /*-----相关变量定义----*/	
 	struct BOOTINFO *stBootInfo= (struct BOOTINFO *) 0x0ff0;//获取启动时候保存的信息
 	char s[100];//输出缓冲区
-	int szTemp[40]; //KeyBuf[32], MouseBuf[128];
+	char szTemp[40]; //KeyBuf[32], MouseBuf[128];
 	int SysBuf[256];
 	struct MOUSE_DEC mdec;
 	
@@ -34,9 +34,6 @@ void HariMain(void)
 	struct SHTCTL *shtctl;		/* 图层管理结构指针 */
 	struct SHEET *Sht_Back, *Sht_Mouse, *Sht_Win,*Sht_TaskWin[2];	/* 背景以及鼠标的图层指针 */
 	unsigned char *Buf_Back, Buf_Mouse[256],*Buf_Win,*Buf_TaskWin[2];
-
-	char timerbuf[8];
-	//struct FIFO32 timerfifo, timerfifo2, timerfifo3;	/* 用于定时器的队列 */
 	struct TIMER *timer;
 
 	struct TASK *task_a, *task_b[3];
@@ -141,7 +138,7 @@ void HariMain(void)
 	task_b[0]->tss.eip = (int) &task_b_main;		/* 设置任务B的寄存器 */
 	task_b[1]->tss.eip = (int) &task_b_main1;		/* 设置任务B的寄存器 */
 	task_b[2]->tss.eip = (int) &task_win_main;		/* 设置任务Window的寄存器 */
-	task_hlt->tss.eip = (int) &task_kernel_hlt;		/* 设置任务Window的寄存器 */
+
 	/* 先将task_b_esp + 4转换成int类型的指针  即(int *) (task_b_esp + 4) */
 	/* 再将(int) sht_back赋值到该地址处*((int *) (task_b_esp + 4)) */
 	*((int *) (task_b[0]->tss.esp + 4)) = (int) Sht_TaskWin[0];
@@ -153,7 +150,7 @@ void HariMain(void)
 	//task_run(task_b[0], 1);			
 	//task_run(task_b[1], 2);	
 	//task_run(task_b[2], 2);
-	//task_run(task_hlt, 1);
+	
 	
 /*----显示系统信息----*/
 	//sprintf(s, "(%3d, %3d)", mx, my);
@@ -165,7 +162,7 @@ void HariMain(void)
 	
 	sprintf(szTemp, "MemFree:%d KB", memman_total(memman) /1024);	
 	putfonts8_asc_sht(Sht_Back, 0, 68,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
-	
+
 
 /*----定时器设置----*/	
 	timer = timer_alloc();					/* 创建定时器 */
@@ -295,7 +292,7 @@ void task_win_main(struct SHEET *sht_back)
 	int nPutTime=3;//介绍文字输出间隔
 	
 	int MsgFifo_buf[128];
-	int i,data;//fifobuf[128],fifo_put_buf[128];
+	int i;
 		
 	int nPos_CurX=12;
 	int nPos_CurY=30;
@@ -482,13 +479,5 @@ void task_b_main1(struct SHEET *sht_back)
 	
 }
 
-/* 内核闲置任务*/
-void task_kernel_hlt()
-{
-	for(;;)
-	{
-		io_hlt();
-	}
-	
-}
+
 

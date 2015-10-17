@@ -4,7 +4,7 @@
 unsigned int memtest(unsigned int start, unsigned int end)
 {
 	/*这里默认是486以上CPU*/
-	unsigned int eflg, cr0, i;
+	unsigned int cr0, i;
 
 	/*禁止高速缓存*/
 	cr0 = load_cr0();			/* 获取CR0寄存器的值 */
