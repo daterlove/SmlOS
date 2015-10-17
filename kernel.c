@@ -13,6 +13,7 @@ extern struct TIMERCTL timerctl;
 void task_b_main(struct SHEET *sht_back);
 void task_b_main1(struct SHEET *sht_back);
 /* Window任务*/
+void PutWinTextChar(struct SHEET *sht_back,char *s,int nXSize,int nYSize,int *nPos_CurX,int *nPos_CurY);
 void task_win_main(struct SHEET *sht_back);
 
 /*备注：可能由于测试虚拟机CPU调度策略不同，VM虚拟机 io_stihlt()操作时，
@@ -255,13 +256,16 @@ void HariMain(void)
 				{
 					task_run(task_b[0], 2,1);			
 					task_run(task_b[1], 2,2);
+					
+					//sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
+					//task_run(task_b[2],2,2);
 				}
 				else if(timerctl.count/100==7)//3秒时候停止
 				{
 					task_sleep(task_b[0]);
 					task_sleep(task_b[1]);
-					sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
 					
+					sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
 					task_run(task_b[2],2,2);
 				}
 
@@ -269,20 +273,62 @@ void HariMain(void)
 
 			}
 		}	
-		//task_sleep(task_a);
 	}
 }
 
 /*-----应用任务---------------------------------------*/
+
+/*输出一个字符到窗体文本框*/
+void PutWinTextChar(struct SHEET *sht_back,char *s,int nXSize,int nYSize,int *nPos_CurX,int *nPos_CurY)
+{
+	char szChar[2];//存取单个字符，临时变量
+	
+	szChar[0]=*s;
+	szChar[1]=0;
+					
+	if(szChar[0]=='\n')//暂且用这个代表换行。。以后再换
+	{
+		RectFill(sht_back->buf, sht_back->bxsize, COL_WHITE, *nPos_CurX, *nPos_CurY, *nPos_CurX+1 , *nPos_CurY + 16);
+		sheet_refresh(sht_back, *nPos_CurX, *nPos_CurY, *nPos_CurX+10+1 , *nPos_CurY +16+1);
+
+		if(*nPos_CurY<nYSize-40)
+		{
+			*nPos_CurX=12;
+			*nPos_CurY+=18;
+		}
+		return;
+	}
+	
+	if(*nPos_CurX<nXSize-20)//在一行内可以输出
+	{				
+	
+		/*光标绘制 白色*/	
+		putfonts8_asc_sht(sht_back, *nPos_CurX, *nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
+			
+		//nTextSel++;		//取字符 位置加1					
+		*nPos_CurX+=8;	//光标移至下一个字符位置
+						
+		if(*nPos_CurX>nXSize-20)//超过一行
+		{
+			if(*nPos_CurY<nYSize-40)//换行后不会超过底部
+			{
+				*nPos_CurX=12;
+				*nPos_CurY+=18;
+				putfonts8_asc_sht(sht_back, *nPos_CurX, *nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
+			}
+		}
+										
+	}
+
+	
+}
+
 /* Window任务*/
 void task_win_main(struct SHEET *sht_back)
 {
-	//struct FIFO32 fifo,fifo_put;
 	struct FIFO32 MsgFifo;//任务消息队列
-	
 	struct TIMER *timer_text_Cur;//光标闪烁定时器
 	struct TIMER *timer_put;//介绍文字输出定时器
-	
 	struct TASK *task = task_now();//当前任务，即本身
 	
 	int nXSize=450;//窗体宽度
@@ -298,24 +344,17 @@ void task_win_main(struct SHEET *sht_back)
 	int nPos_CurY=30;
 	
 	char szChar[2];//存取单个字符，临时变量
-	int nTextSel=0;//正在输出的文字位置
-	char *szText="          Welcome to use SmlOS.-       If you hava any question.-       You can contact me.-       DaterLove-       QQ:306463830";
+	int nTextSel=0,nTextLine=0;//正在输出的文字位置,行数
 	
-	//fifo32_init(&fifo, 128, fifobuf,0);
-	//fifo32_init(&fifo_put, 128, fifo_put_buf,0);
+	char *szText[5]={"          Welcome to use SmlOS.","-       If you hava any question.","-       You can contact me.","-       DaterLove","-       QQ:306463830"};
 	
 	fifo32_init(&MsgFifo, 128, MsgFifo_buf,task);
-	
 	timer_text_Cur = timer_alloc();	
 	timer_put = timer_alloc();	
-	
 	timer_init(timer_text_Cur, &MsgFifo, 1);
 	timer_init(timer_put, &MsgFifo, 2);
-	
 	timer_settime(timer_text_Cur, nCurTime);
 	timer_settime(timer_put, 50);
-	
-	//putfonts8_asc_sht(sht_back, nPos_CurX+2, nPos_CurY+2,COL_BLACK,COL_WHITE, szText, 16);//在图层上显示文字
 	
 	for (;;) 
 	{
@@ -350,40 +389,24 @@ void task_win_main(struct SHEET *sht_back)
 			}
 			else if((i==2))//文字输出定时器
 			{
-				if(nTextSel<128)//字符个数
+				if(nTextLine<5)//字符行数
 				{
-					szChar[0]=*(szText+nTextSel);
+					szChar[0]=*(szText[nTextLine]+nTextSel);
 					szChar[1]=0;
 					
-					if(szChar[0]=='-')//暂且用这个代表换行。。以后再换
+					if(szChar[0]!='\0')
 					{
-						RectFill(sht_back->buf, sht_back->bxsize, COL_WHITE, nPos_CurX, nPos_CurY, nPos_CurX+1 , nPos_CurY + 16);
-						sheet_refresh(sht_back, nPos_CurX, nPos_CurY, nPos_CurX+10+1 , nPos_CurY +16+1);
-
-						if(nPos_CurY<nYSize-40)
-						{
-							nPos_CurX=12;
-							nPos_CurY+=18;
-						}
+						PutWinTextChar(sht_back,szChar,nXSize,nYSize,&nPos_CurX,&nPos_CurY);//输出文字
+						nTextSel++;
 					}
-					if(nPos_CurX<nXSize-20)//在一行内可以输出
-					{				
-						/*光标绘制 白色*/
-					
-						putfonts8_asc_sht(sht_back, nPos_CurX, nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
-			
-						nTextSel++;		//取字符 位置加1					
-						nPos_CurX+=8;	//光标移至下一个字符位置
-						
-						if(nPos_CurX>nXSize-20)//超过一行
-						{
-							if(nPos_CurY<nYSize-40)//换行后不会超过底部
-							{
-								nPos_CurX=12;
-								nPos_CurY+=18;
-							}
-						}
-										
+					else
+					{
+						//换行
+						szChar[0]='\n';
+						szChar[1]=0;
+						PutWinTextChar(sht_back,szChar,nXSize,nYSize,&nPos_CurX,&nPos_CurY);
+						nTextLine++;
+						nTextSel=0;
 					}
 
 					timer_settime(timer_put, nPutTime);
