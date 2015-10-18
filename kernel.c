@@ -1,5 +1,7 @@
 #include "common.h"
 
+#define TEST_ING 0
+
 struct FIFO32 SysFifo;
 int nKeyData0,nMouseData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区） 
 
@@ -39,6 +41,34 @@ void HariMain(void)
 
 	struct TASK *task_a, *task_b[3];
 	//struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;	/* 申请一个段描述符 */
+	
+	/* 没有按shift */
+	static char keytable0[0x80] = 
+	{
+		0,   0,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^', 0,   0,
+		'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '@', '[', 0,   0,   'A', 'S',
+		'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', ':', 0,   0,   ']', 'Z', 'X', 'C', 'V',
+		'B', 'N', 'M', ',', '.', '/', 0,   '*', 0,   ' ', 0,   0,   0,   0,   0,   0,
+		0,   0,   0,   0,   0,   0,   0,   '7', '8', '9', '-', '4', '5', '6', '+', '1',
+		'2', '3', '0', '.', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+		0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+		0,   0,   0,   0x5c, 0,  0,   0,   0,   0,   0,   0,   0,   0,   0x5c, 0,  0
+	};
+	/* 按下shift后 */
+	static char keytable1[0x80] = 
+	{
+		0,   0,   '!', 0x22, '#', '$', '%', '&', 0x27, '(', ')', '~', '=', '~', 0,   0,
+		'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '`', '{', 0,   0,   'A', 'S',
+		'D', 'F', 'G', 'H', 'J', 'K', 'L', '+', '*', 0,   0,   '}', 'Z', 'X', 'C', 'V',
+		'B', 'N', 'M', '<', '>', '?', 0,   '*', 0,   ' ', 0,   0,   0,   0,   0,   0,
+		0,   0,   0,   0,   0,   0,   0,   '7', '8', '9', '-', '4', '5', '6', '+', '1',
+		'2', '3', '0', '.', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+		0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+		0,   0,   0,   '_', 0,   0,   0,   0,   0,   0,   0,   0,   0,   '|', 0,   0
+	};
+	int key_shift = 0;
+	int key_leds = (stBootInfo->leds >> 4) & 7;
+	int key_wait = -1;
 	
 /*-----系统初始化操作----*/
 	unsigned char *vram=stBootInfo->vram;
@@ -193,6 +223,88 @@ void HariMain(void)
 				i-=nKeyData0;		
 				sprintf(s, "%02X", i);	
 				putfonts8_asc_sht(Sht_Back, 0, 16,COL_BLACK,COL_GREEN, s, 2);//在图层上显示文字
+	//----------------------------------------------------------------------------------------
+				if (i < 0x80) 
+				{ 
+					if (key_shift == 0)/* 如果shift没有被按下 */ 
+					{	
+						s[0] = keytable0[i];		/* 将键值转换成字符的ASCII码 */
+					} 
+					else/* 如果shift被按下了 */ 
+					{				
+						s[0] = keytable1[i];		/* 将键值转换成字符的ASCII码 */
+					}
+				} 
+				else 
+				{	
+					s[0] = 0;
+				}
+				
+				if ('A' <= s[0] && s[0] <= 'Z')/* 如果输入的是英文字母 */ 
+				{	
+					/* CapsLock为OFF并且Shift为OFF 或者 CapsLock为ON并且Shift为ON */
+					if (((key_leds & 4) == 0 && key_shift == 0) ||((key_leds & 4) != 0 && key_shift != 0)) 
+					{
+						s[0] += 0x20;	/* 将大写字母转换成小写字母 */
+										/* 同一个字母的大小写ASCII码相差0x20 */
+					}
+				}
+				
+				if (i == 0x0e)/* 退格键 */ 
+				{	
+					if(task_b[2]->fifo)//如果fifo存在
+					{
+						fifo32_put(task_b[2]->fifo, 8 + 256);
+					}
+				}
+				else if (i == 0x1c)/* 换行键 */ 
+				{	
+					if(task_b[2]->fifo)//如果fifo存在
+					{
+						fifo32_put(task_b[2]->fifo, 7 + 256);
+					}
+				}
+				else if (s[0] != 0)  /* 一般字符 */
+				{
+					if(task_b[2]->fifo)//如果fifo存在
+					{
+						fifo32_put(task_b[2]->fifo, s[0] + 256);
+					}
+				}	
+			
+				/* key_shift变量的bit0和bit1分别标识了左shift和右shift的开启与关闭状态 */
+				if (i == 0x2a)/* 左shift ON */ 
+				{	
+					key_shift |= 1;
+				}
+				if (i == 0x36)/* 右shift ON */
+				{	
+					key_shift |= 2;
+				}
+				if (i == 0xaa)/* 左shift OFF */ 
+				{	
+					key_shift &= ~1;
+				}
+				if (i == 0xb6)/* 右shift OFF */ 
+				{	
+					key_shift &= ~2;
+				}
+				
+				// 0xfa是ACK信息
+				if (i == 0xfa) // 键盘成功接收到数据 
+				{	
+					key_wait = -1;	//等于-1表示可以发送指令 
+					putfonts8_asc_sht(Sht_Back, 20, 16,COL_BLACK,COL_RED, s, 2);//在图层上显示文字
+				}
+				if (i == 0xfe)// 键盘没有成功接收到数据 
+				{	
+					wait_KBC_sendready();
+					io_out8(PORT_KEYDAT, key_wait);	// 重新发送上次的指令 
+					putfonts8_asc_sht(Sht_Back, 20, 16,COL_BLACK,COL_YELLOW, s, 2);//在图层上显示文字
+				}
+				
+	//----------------------------------------------------------------------------------------
+				
 			} 
 			else if (nMouseData0<=i && i<=nMouseData0+0xFF) /* 鼠标缓冲区有数据 */				
 			{	
@@ -252,21 +364,28 @@ void HariMain(void)
 				sprintf(s, "%03d Sec", timerctl.count/100);
 				putfonts8_asc_sht(Sht_Back, nXSize-60, nYSize-23,COL_WHITE,COL_BLACK, s, 9);//在图层上显示文字
 				
-				if(timerctl.count/100==2)//3秒时候开始
+				if(timerctl.count/100==2)//2秒时候开始
 				{
-					task_run(task_b[0], 2,1);			
-					task_run(task_b[1], 2,2);
+					//根据预处理命令判断是否在测试中
+					#if TEST_ING
+						sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
+						task_run(task_b[2],2,2);
+					#else
+						task_run(task_b[0], 2,1);			
+						task_run(task_b[1], 2,2);
+					#endif 
 					
-					//sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
-					//task_run(task_b[2],2,2);
 				}
 				else if(timerctl.count/100==7)//3秒时候停止
 				{
-					task_sleep(task_b[0]);
-					task_sleep(task_b[1]);
-					
-					sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
-					task_run(task_b[2],2,2);
+					//根据预处理命令判断是否在测试中
+					#if TEST_ING
+					#else
+						task_sleep(task_b[0]);
+						task_sleep(task_b[1]);
+						sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
+						task_run(task_b[2],2,2);
+					#endif 
 				}
 
 				timer_settime(timer, 100);				/* 定时器设置 */	
@@ -282,11 +401,10 @@ void HariMain(void)
 void PutWinTextChar(struct SHEET *sht_back,char *s,int nXSize,int nYSize,int *nPos_CurX,int *nPos_CurY)
 {
 	char szChar[2];//存取单个字符，临时变量
-	
 	szChar[0]=*s;
 	szChar[1]=0;
 					
-	if(szChar[0]=='\n')//暂且用这个代表换行。。以后再换
+	if(szChar[0]=='\n')//用这个代表换行
 	{
 		RectFill(sht_back->buf, sht_back->bxsize, COL_WHITE, *nPos_CurX, *nPos_CurY, *nPos_CurX+1 , *nPos_CurY + 16);
 		sheet_refresh(sht_back, *nPos_CurX, *nPos_CurY, *nPos_CurX+10+1 , *nPos_CurY +16+1);
@@ -301,10 +419,8 @@ void PutWinTextChar(struct SHEET *sht_back,char *s,int nXSize,int nYSize,int *nP
 	
 	if(*nPos_CurX<nXSize-20)//在一行内可以输出
 	{				
-	
-		/*光标绘制 白色*/	
-		putfonts8_asc_sht(sht_back, *nPos_CurX, *nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
 			
+		putfonts8_asc_sht(sht_back, *nPos_CurX, *nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
 		//nTextSel++;		//取字符 位置加1					
 		*nPos_CurX+=8;	//光标移至下一个字符位置
 						
@@ -316,10 +432,27 @@ void PutWinTextChar(struct SHEET *sht_back,char *s,int nXSize,int nYSize,int *nP
 				*nPos_CurY+=18;
 				putfonts8_asc_sht(sht_back, *nPos_CurX, *nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
 			}
-		}
-										
+		}									
 	}
+}
 
+/*退格功能*/
+void TextCurBack(struct SHEET *sht_back,int nXSize,int nYSize,int *nPos_CurX,int *nPos_CurY)
+{
+	if(*nPos_CurX>15)
+	{
+		*nPos_CurX-=8;	//光标移退一格
+	}
+	else if(*nPos_CurY>30)//退到上一行
+	{
+		RectFill(sht_back->buf, sht_back->bxsize, COL_WHITE, *nPos_CurX, *nPos_CurY, *nPos_CurX+1 , *nPos_CurY + 16);
+		sheet_refresh(sht_back, *nPos_CurX, *nPos_CurY, *nPos_CurX+10+1 , *nPos_CurY +16+1);
+		*nPos_CurX=428;
+		*nPos_CurY-=18;
+	}
+	/*覆盖块 白色*/
+	RectFill(sht_back->buf, sht_back->bxsize, COL_WHITE, *nPos_CurX, *nPos_CurY, *nPos_CurX+10 , *nPos_CurY + 16);
+	sheet_refresh(sht_back, *nPos_CurX, *nPos_CurY, *nPos_CurX+10+1 , *nPos_CurY +16+1);
 	
 }
 
@@ -330,6 +463,7 @@ void task_win_main(struct SHEET *sht_back)
 	struct TIMER *timer_text_Cur;//光标闪烁定时器
 	struct TIMER *timer_put;//介绍文字输出定时器
 	struct TASK *task = task_now();//当前任务，即本身
+	task->fifo=&MsgFifo;//设置任务的fifo缓冲区
 	
 	int nXSize=450;//窗体宽度
 	int nYSize=300;//窗体高度
@@ -338,6 +472,7 @@ void task_win_main(struct SHEET *sht_back)
 	int nPutTime=3;//介绍文字输出间隔
 	
 	int MsgFifo_buf[128];
+	int s[10];
 	int i;
 		
 	int nPos_CurX=12;
@@ -412,6 +547,35 @@ void task_win_main(struct SHEET *sht_back)
 					timer_settime(timer_put, nPutTime);
 				}
 			}
+	//-------------------------------------------------------------------------------------
+			else if (256 <= i && i <= 511)/* 任务A传送过来的键盘的数据 */ 				
+			{ 
+				i-=256;
+				#if TEST_ING
+				sprintf(s, "%02d", i);
+				putfonts8_asc_sht(sht_back, 0, 0,COL_BLACK,COL_WHITE, s, 4);//在图层上显示文字
+				#endif
+				
+				if (i == 8)/* 退格键 */ 
+				{		
+					TextCurBack(sht_back,nXSize,nYSize,&nPos_CurX,&nPos_CurY);
+					
+				}
+				else if(i ==7)//换行
+				{
+					szChar[0]='\n';
+					szChar[1]=0;
+					PutWinTextChar(sht_back,szChar,nXSize,nYSize,&nPos_CurX,&nPos_CurY);
+				}
+				else /* 一般字符 ,在任务A中已经将键值转换成字符的ASCII码*/
+				{
+					szChar[0]=i;
+					szChar[1]=0;
+					PutWinTextChar(sht_back,szChar,nXSize,nYSize,&nPos_CurX,&nPos_CurY);	
+					
+				}
+			}
+	//-------------------------------------------------------------------------------------
 			
 		}
 	}
@@ -494,7 +658,7 @@ void task_b_main1(struct SHEET *sht_back)
 			{
 				sprintf(s, " Count:%d", count);
 				putfonts8_asc_sht(sht_back, 22, 50,COL_BLACK,COL_APPLE_GRREN, s, 16);//在图层上显示文字
-				
+				 
 				timer_settime(timer_put, 10);		
 			}
 		}

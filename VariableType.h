@@ -153,6 +153,7 @@ struct TSS32
    level	任务运行运行层上(越低层优先运行)
    priority	该任务的优先级（运行时间-ms单位）
    tss		TSS数据结构 用于任务切换时保存任务的寄存器及任务的配置信息
+   fifo		该任务缓冲区
 */
 struct TASK
 {
@@ -160,6 +161,7 @@ struct TASK
 	int level;
 	int priority;
 	struct TSS32 tss;
+	struct FIFO32 *fifo;
 };
 
 /* 任务的分层结构*/
