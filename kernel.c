@@ -1,6 +1,6 @@
 #include "common.h"
 
-#define TEST_ING 0
+#define TEST_ING 1
 
 struct FIFO32 SysFifo;
 int nKeyData0,nMouseData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区） 
@@ -41,6 +41,11 @@ void HariMain(void)
 
 	struct TASK *task_a, *task_b[3];
 	//struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;	/* 申请一个段描述符 */
+	
+	//窗体移动相关变量
+	//
+	int mmx=-1,mmy=-1;
+	struct SHEET *sht=0;
 	
 	/* 没有按shift */
 	static char keytable0[0x80] = 
@@ -223,7 +228,7 @@ void HariMain(void)
 				i-=nKeyData0;		
 				sprintf(s, "%02X", i);	
 				putfonts8_asc_sht(Sht_Back, 0, 16,COL_BLACK,COL_GREEN, s, 2);//在图层上显示文字
-	//----------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------
 				if (i < 0x80) 
 				{ 
 					if (key_shift == 0)/* 如果shift没有被按下 */ 
@@ -303,7 +308,7 @@ void HariMain(void)
 					putfonts8_asc_sht(Sht_Back, 20, 16,COL_BLACK,COL_YELLOW, s, 2);//在图层上显示文字
 				}
 				
-	//----------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------
 				
 			} 
 			else if (nMouseData0<=i && i<=nMouseData0+0xFF) /* 鼠标缓冲区有数据 */				
@@ -316,8 +321,59 @@ void HariMain(void)
 					if ((mdec.btn & 0x01) != 0) /* 如果左键被按下 */
 					{	
 						s[1] = 'L';
-						sheet_slide(Sht_Win, mx, my);
+						//----移动窗体到最顶层-------------------------------------------
+						int j,x,y;
+						if(mmx<0)//普通模式（mmx负数）
+						{
+							//遍历图层
+							for (j = shtctl->top - 1; j > 0; j--) 
+							{
+								sht = shtctl->p_sheets[j];
+								//vx0, vy0图层左上角的坐标
+								x = mx - sht->vx0;//鼠标与窗口左上角长度距离
+								y = my - sht->vy0;//鼠标与窗口左上角高度距离
+								//在图层的大小范围内
+								if (0 <= x && x < sht->bxsize && 0 <= y && y < sht->bysize) 
+								{
+									//按中 关闭按钮，隐藏窗体
+									if(x > sht->bxsize-25 && x < sht->bxsize-5 && y > 4 && y < 17)
+									{
+										sheet_updown(sht, -1);
+										break;
+									}
+									//不是透明色
+									if (sht->buf[y * sht->bxsize + x] != sht->col_inv)
+									{
+										sheet_updown(sht, shtctl->top - 1);
+					
+										if(y<22)//在标题栏中，则进入拖动模式
+										{
+											mmx=mx;
+											mmy=my;
+										}
+										break;
+									}
+										
+								}
+							}
+						}
+						else//进入拖动模式
+						{
+							x=mx-mmx;//计算鼠标移动距离
+							y=my-mmy;//这里mmx，mmx是上一次鼠标位置
+							//移动船体
+							sheet_slide(sht, sht->vx0+x, sht->vy0+y);
+							mmx=mx;
+							mmy=my;
+						}
+						
 					}
+					else
+					{
+						mmx=-1;//返回通常模式（左键放开时）
+					}
+					//-----------------------------------------------------------------
+					
 					if ((mdec.btn & 0x02) != 0) /* 如果右键被按下 */
 					{	
 						s[3] = 'R';
