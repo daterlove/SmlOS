@@ -145,10 +145,12 @@ void HariMain(void)
 	sheet_slide(Sht_Mouse, mx, my);	/* 设置鼠标图层的位置 */
 	
 	sheet_updown(Sht_Back,  0);		/* 调整背景图层和鼠标图层的高度 */
+	
 	sheet_updown(Sht_TaskWin[0],   1);	
 	sheet_updown(Sht_TaskWin[1],   2);	
 	sheet_updown(Sht_Win,   -1);		/* 调整默认窗口 */
 	sheet_updown(Sht_Mouse, 4);		/* 并且会显示背景与鼠标图层 */
+	
 /*---任务切换相关---*/
 	int i;
 	/* 任务切换初始化(*/
@@ -424,7 +426,7 @@ void HariMain(void)
 				{
 					//根据预处理命令判断是否在测试中
 					#if TEST_ING
-						sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
+						sheet_updown(Sht_Win,shtctl->top-1);	//弹出笔记本窗口 
 						task_run(task_b[2],2,2);
 					#else
 						task_run(task_b[0], 2,1);			
@@ -439,7 +441,7 @@ void HariMain(void)
 					#else
 						task_sleep(task_b[0]);
 						task_sleep(task_b[1]);
-						sheet_updown(Sht_Win,   3);		/* 调整默认窗口 */  
+						sheet_updown(Sht_Win,shtctl->top-1);		//弹出笔记本窗口  
 						task_run(task_b[2],2,2);
 					#endif 
 				}
@@ -486,7 +488,7 @@ void PutWinTextChar(struct SHEET *sht_back,char *s,int nXSize,int nYSize,int *nP
 			{
 				*nPos_CurX=12;
 				*nPos_CurY+=18;
-				putfonts8_asc_sht(sht_back, *nPos_CurX, *nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
+				//putfonts8_asc_sht(sht_back, *nPos_CurX, *nPos_CurY,COL_BLACK,COL_WHITE, szChar, 1);//在图层上显示文字
 			}
 		}									
 	}
