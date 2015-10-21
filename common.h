@@ -15,6 +15,7 @@
 #include "Timer.h"
 #include "Task.h"
 #include "Interruput.h"
+#include "WinTask.h"
 
 #define ADR_BOOTINFO	0x00000ff0	/* 存放启动信息的地址 */
 #define MEMMAN_ADDR			0x003c0000	/* MEMMAN结构将被存放在该地址处 */

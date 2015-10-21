@@ -1,5 +1,5 @@
 #MakeFile∂®“Â
-OBJS_BOOTPACK = kernel.obj AsmFunc.obj Font.obj GDT_IDT.obj Graphic.obj Interruput.obj FIFO.obj Key_Mouse.obj MemManage.obj SheetManage.obj Timer.obj Task.obj
+OBJS_BOOTPACK = kernel.obj AsmFunc.obj Font.obj GDT_IDT.obj Graphic.obj Interruput.obj FIFO.obj Key_Mouse.obj MemManage.obj SheetManage.obj Timer.obj Task.obj WinTask.obj
 
 TOOLPATH = tools/
 INCPATH  = tools/haribote/
