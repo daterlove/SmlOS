@@ -3,7 +3,8 @@
 void init_palette(void)
 {
 	/* static声明的变量是"静态"的  在程序结束之前一直"存在" */
-	static unsigned char table_rgb[16 * 3] = {
+	static unsigned char table_rgb[16 * 3] = 
+	{
 		0x00, 0x00, 0x00,	/*  0:黑 */
 		0xff, 0x00, 0x00,	/*  1:亮红 */
 		0x00, 0xff, 0x00,	/*  2:亮绿 */
@@ -18,7 +19,7 @@ void init_palette(void)
 		0x84, 0x84, 0x00,	/* 11:暗黄 */
 		0x00, 0x00, 0x84,	/* 12:暗青 */
 		0x84, 0x00, 0x84,	/* 13:暗紫 */
-		0x00, 0x84, 0x84,	/* 14:浅暗蓝 */
+		0x60, 0xA0, 0xC0,	/* 14:浅暗蓝 */
 		0x84, 0x84, 0x84	/* 15:暗灰 */
 	};
 	set_palette(0, 15, table_rgb);		/* 设置调色板 */
@@ -31,14 +32,43 @@ void set_palette(int start, int end, unsigned char *rgb)
 	int i, eflags;
 	eflags = io_load_eflags();	/* 保存eflags的值 */
 	io_cli(); 					/* 关闭所有可屏蔽中断 */
-	io_out8(0x03c8, start);		
+	io_out8(0x03c8, start);	
+/*	
 	for (i = start; i <= end; i++) 
 	{
-		io_out8(0x03c9, rgb[0] / 4);
-		io_out8(0x03c9, rgb[1] / 4);
-		io_out8(0x03c9, rgb[2] / 4);
+		io_out8(0x03c9, rgb[0]/4);
+		io_out8(0x03c9, rgb[1]/4);
+		io_out8(0x03c9, rgb[2]/4);
 		rgb += 3;
 	}
+*/	
+	unsigned char *p=0x10B036;
+	unsigned char *pTemp=0x100000;
+	
+	for(i=0;i<=255;i++)
+	{
+		
+	/*	if(i==0)
+		{
+	
+		io_out8(0x03c9, 0x60/4);
+		io_out8(0x03c9, 0xa0/4);
+		io_out8(0x03c9, 0xc0/4);
+		
+		*pTemp=*p;
+		*(pTemp+1)=*(p+1);
+		*(pTemp+2)=*(p+2);
+		}
+		else
+		{*/
+	
+		io_out8(0x03c9, *(p+2)/4);
+		io_out8(0x03c9, *(p+1)/4);
+		io_out8(0x03c9, *p/4);
+	//	}
+		p +=4;
+	}
+	
 	io_store_eflags(eflags);	/* 恢复eflags的值 */
 	return;
 }
@@ -61,7 +91,39 @@ void RectFill(unsigned char *vram, int nXSize,unsigned char Color, int x0, int y
 /*绘制背景*/
 void DrawBack(char *vram, int nXSize, int nYSize)
 {
-	RectFill(vram,nXSize,COL_BLUE,0,0,nXSize,nYSize);//背景
+	RectFill(vram,nXSize,0xeb,0,0,nXSize,nYSize);//背景
+	
+	struct tagBITMAPFILEHEADER  *BmpHead= (struct tagBITMAPFILEHEADER *) 0x10AE02;//获取启动时候保存的信息
+	
+	char szTemp[30];
+	unsigned char *pTemp;
+	pTemp=&(BmpHead->bfSize);
+	//pTemp=(unsigned char *)0x10AE00;
+	sprintf(szTemp, "Bmp:%x",BmpHead->bfSize);
+	PutFont_Asc(vram, nXSize, nXSize-260, nYSize-23, COL_WHITE, szTemp); // 显示秒数信息 
+	
+	int i,j;
+	
+	unsigned char *p=0x10B236;//背景图片内存地址
+	
+	int nXOffset=288;
+	for(i=599;i>=0;i--)
+	{
+		for(j=0;j<800;j++)
+		{
+			/*
+			if(*p==0xff)
+			{
+				vram[i * nXSize + j + nXOffset] =COL_WHITE;
+			}
+			else
+			{*/
+				vram[i * nXSize + j + nXOffset] =*p;
+			//}
+			p++;
+		}
+	}
+	
 	
 	RectFill(vram,nXSize,COL_BLACK,0,nYSize-30,nXSize,nYSize);//任务栏
 	RectFill(vram,nXSize,COL_DARK_GREY,43,nYSize-25,43,nYSize-5);//任务栏左边线
@@ -72,6 +134,12 @@ void DrawBack(char *vram, int nXSize, int nYSize)
 	RectFill(vram,nXSize,COL_DARK_GREY,nXSize-70,nYSize-25,nXSize-70,nYSize-5);//任务栏右边线
 	
 	PutFont_Asc(vram, nXSize, nXSize-60, nYSize-23, COL_WHITE, "000 Sec"); // 显示秒数信息 
+	
+	//p=0x100000;
+	sprintf(szTemp, "Bmp:%x,%x,%x",*p,*(p+1),*(p+2));
+	//RectFill(vram,nXSize,COL_BLACK,nXSize-260,nYSize-23,nXSize,nYSize);//任务栏
+	//PutFont_Asc(vram, nXSize, nXSize-260, nYSize-23, COL_WHITE, szTemp); // 显示秒数信息 
+	/**/
 }
 
 /*输出字符串*/

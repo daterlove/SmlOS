@@ -201,7 +201,7 @@ void task_b_main(struct SHEET *sht_back)
 	timer_init(timer_put, &fifo, 1);
 	timer_settime(timer_put, 50);
 	
-	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:1ms", 16);//在图层上显示文字
+	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:10ms", 16);//在图层上显示文字
 	
 	for (;;) 
 	{
@@ -243,7 +243,7 @@ void task_b_main1(struct SHEET *sht_back)
 	timer_init(timer_put, &fifo, 1);
 	timer_settime(timer_put, 50);
 	
-	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:2ms", 16);//在图层上显示文字
+	putfonts8_asc_sht(sht_back, 22, 28,COL_BLACK,COL_APPLE_GRREN, " Priority:20ms", 16);//在图层上显示文字
 	
 	for (;;) 
 	{

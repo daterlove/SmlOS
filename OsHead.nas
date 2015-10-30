@@ -160,13 +160,13 @@ protectMode:
 		
 ;----------------------------------------------
 ;内核的启动
-	MOV		EBX,BOTPAK		; EBX = 0x00280000
+	MOV		EBX ,BOTPAK		; EBX = 0x00280000
 	MOV		ECX,[EBX+16]	; ECX = 0x11a8
 	ADD		ECX,3			; ECX += 3;
 	SHR		ECX,2			; ECX /= 4;
 	JZ		skip			; 没有要传送的数据时
 	
-	MOV		ESI,[EBX+20]	; 复制的源地址(相对于bootoack.hrb头部的偏移) ESI = 0x10c8
+	MOV		ESI,[EBX+20]	; 复制的源地 址(相对于bootoack头部的偏移) ESI = 0x10c8
 	ADD		ESI,EBX			; 换算出要复制的数据的实际物理地址
 	MOV		EDI,[EBX+12]	; 复制的目的地址	EDI = 0x310000
 	CALL	memcpy

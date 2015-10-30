@@ -26,7 +26,8 @@ struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram, int xsize
 	ctl->xsize = xsize;
 	ctl->ysize = ysize;
 	ctl->top = -1; /* 一个图层也没有 */
-	for (i = 0; i < MAX_SHEETS; i++) {
+	for (i = 0; i < MAX_SHEETS; i++) 
+	{
 		ctl->sheets[i].flags = 0; /* 标记为未使用 */
 		ctl->sheets[i].ctl = ctl; /* 记录所属 */
 	}
@@ -78,8 +79,8 @@ void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 	if (vx1 > ctl->xsize) { vx1 = ctl->xsize; }
 	if (vy1 > ctl->ysize) { vy1 = ctl->ysize; }
 	
-	for (h = h0; h <= ctl->top; h++) 
-	{		/* 遍历从h0到top的所有图层 */
+	for (h = h0; h <= ctl->top; h++) /* 遍历从h0到top的所有图层 */
+	{		
 		sht = ctl->p_sheets[h];
 		sid = sht - ctl->sheets; /* sid是图层在sheets中的下标 */
 		buf = sht->buf;
@@ -92,18 +93,32 @@ void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 		if (by0 < 0) { by0 = 0; }
 		if (bx1 > sht->bxsize) { bx1 = sht->bxsize; }	/* 右下角坐标调整 */
 		if (by1 > sht->bysize) { by1 = sht->bysize; }
-		
-		for (by = by0; by < by1; by++) 
-		{	
-			vy = sht->vy0 + by;
-			for (bx = bx0; bx < bx1; bx++) 
-			{
-				vx = sht->vx0 + bx;
-				/* 如果这一个坐标上该图层是要显示的,我们才会将其sid写入map中 */
-				/* 后面更高的图层可能会覆盖这个图层写入的sid值 */
-				if (buf[by * sht->bxsize + bx] != sht->col_inv) 
+		if(sht->col_inv==-1)//如果图层没有透明色
+		{
+			for (by = by0; by < by1; by++) 
+			{	
+				vy = sht->vy0 + by;
+				for (bx = bx0; bx < bx1; bx++) 
 				{
-					map[vy * ctl->xsize + vx] = sid;
+					vx = sht->vx0 + bx;
+					map[vy * ctl->xsize + vx] = sid;	
+				}
+			}
+		}
+		else//图层有透明色
+		{
+			for (by = by0; by < by1; by++) 
+			{	
+				vy = sht->vy0 + by;
+				for (bx = bx0; bx < bx1; bx++) 
+				{
+					vx = sht->vx0 + bx;
+					/* 如果这一个坐标上该图层是要显示的,我们才会将其sid写入map中 */
+					/* 后面更高的图层可能会覆盖这个图层写入的sid值 */
+					if (buf[by * sht->bxsize + bx] != sht->col_inv) 
+					{
+						map[vy * ctl->xsize + vx] = sid;
+					}
 				}
 			}
 		}

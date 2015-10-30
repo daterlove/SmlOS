@@ -100,7 +100,7 @@ void HariMain(void)
 	
 	/* 这段内存是4K~636K-1,这段内存是4K~636K-1,映像刚开始载入内存的内容，包括引导程序那部分*/
 	memman_free(memman, 0x00001000, 0x0009e000); 	/* 0x00001000 - 0x0009efff */
-	memman_free(memman, 0x00400000, nMemMaxSize - 0x00400000);	/* 4M~内存实际大小 */
+	memman_free(memman, 0x00400000, nMemMaxSize - 0x00400000);	/* 4M~内存实际大小,4M之前用于保存相关数据，预留了很多空间备用 */
 
 
 	
@@ -187,14 +187,14 @@ void HariMain(void)
 	
 /*----显示系统信息----*/
 	//sprintf(s, "(%3d, %3d)", mx, my);
-	sprintf(szTemp, "Screen:(%d, %d)", nXSize, nYSize);
-	putfonts8_asc_sht(Sht_Back, 0, 0,COL_RED,COL_WHITE, szTemp, 17);//在图层上显示文字
+	sprintf(szTemp, "  Screen:(%d, %d)", nXSize, nYSize);
+	putfonts8_asc_sht(Sht_Back, 0, 0,COL_RED,COL_WHITE, szTemp, 19);//在图层上显示文字
 	
 	sprintf(szTemp, "MemMaxSize:%d MB", nMemMaxSize/(1024*1024));	 
-	putfonts8_asc_sht(Sht_Back, 0, 51,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
+	putfonts8_asc_sht(Sht_Back, 0, 57,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
 	
 	sprintf(szTemp, "MemFree:%d KB", memman_total(memman) /1024);	
-	putfonts8_asc_sht(Sht_Back, 0, 68,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
+	putfonts8_asc_sht(Sht_Back, 0, 76,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
 
 
 /*----定时器设置----*/	
@@ -202,7 +202,7 @@ void HariMain(void)
 	timer_init(timer, &SysFifo, 100);		/* 定时器初始化 */
 	timer_settime(timer, 100);				/* 定时器设置 */	
 	
-	
+	unsigned char cTemp=0x25;//颜色测试语句
 /*---内核循环---*/	
 	for (;;) 
 	{
@@ -224,7 +224,7 @@ void HariMain(void)
 			{		
 				i-=nKeyData0;		
 				sprintf(s, "%02X", i);	
-				putfonts8_asc_sht(Sht_Back, 0, 16,COL_BLACK,COL_GREEN, s, 2);//在图层上显示文字
+				putfonts8_asc_sht(Sht_Back, 0, 20,COL_BLACK,COL_GREEN, s, 2);//在图层上显示文字
 			//----------------------------------------------------------------------------------------
 				if (i < 0x80) 
 				{ 
@@ -296,7 +296,7 @@ void HariMain(void)
 				if (i == 0xfa) // 键盘成功接收到数据 
 				{	
 					key_wait = -1;	//等于-1表示可以发送指令 
-					putfonts8_asc_sht(Sht_Back, 20, 16,COL_BLACK,COL_RED, s, 2);//在图层上显示文字
+					putfonts8_asc_sht(Sht_Back, 20, 18,COL_BLACK,COL_RED, s, 2);//在图层上显示文字
 				}
 				if (i == 0xfe)// 键盘没有成功接收到数据 
 				{	
@@ -380,7 +380,7 @@ void HariMain(void)
 						s[2] = 'C';
 					}
 
-					putfonts8_asc_sht(Sht_Back, 32, 16,COL_BLACK,COL_GREEN, s, 15);//在图层上显示文字
+					putfonts8_asc_sht(Sht_Back, 32, 20,COL_BLACK,COL_GREEN, s, 15);//在图层上显示文字
 					
 					mx += mdec.x;					/* 更新新的鼠标位置 */
 					my += mdec.y;
@@ -404,16 +404,14 @@ void HariMain(void)
 					}
 					
 					sprintf(s, "MousePos:(%3d, %3d)", mx, my);
-					putfonts8_asc_sht(Sht_Back, 0, 33,COL_BLACK,COL_GREEN, s, 19);//在图层上显示文字
+					putfonts8_asc_sht(Sht_Back, 0, 39,COL_BLACK,COL_GREEN, s, 19);//在图层上显示文字
 					
 					sheet_slide(Sht_Mouse, mx, my);	/* 更新鼠标图层的位置并显示新的鼠标图层 */
 				
 				}
 			}
 			else if (i == 100) /* 定时器数据 ,100是设置的写入data*/
-			{	
-				
-				//-----------任务栏秒数显示----------------------------------
+			{	//-----------任务栏秒数显示----------------------------------
 				sprintf(s, "%03d Sec", timerctl.count/100);
 				putfonts8_asc_sht(Sht_Back, nXSize-60, nYSize-23,COL_WHITE,COL_BLACK, s, 9);//在图层上显示文字
 				
@@ -429,18 +427,31 @@ void HariMain(void)
 					#endif 
 					
 				}
-				else if(timerctl.count/100==7)//3秒时候停止
+				else if(timerctl.count/100==7)//7秒时候停止
 				{
 					//根据预处理命令判断是否在测试中
 					#if TEST_ING
 					#else
 						task_sleep(task_b[0]);
 						task_sleep(task_b[1]);
+					#endif 
+				}
+				else if(timerctl.count/100==8)
+				{
+					#if TEST_ING
+					#else
+				
 						sheet_updown(Sht_Win,shtctl->top-1);		//弹出笔记本窗口  
 						task_run(task_b[2],2,2);
 					#endif 
 				}
-
+				/*颜色测试语句
+				sprintf(s, "%X", cTemp);
+				
+				RectFill(vram,nXSize,cTemp,0,0,nXSize,nYSize);
+				PutFont_Asc(vram, nXSize, 100, 250, COL_WHITE, s);
+				cTemp++;*/
+				
 				timer_settime(timer, 100);				/* 定时器设置 */	
 
 			}

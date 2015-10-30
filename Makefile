@@ -64,6 +64,7 @@ SmlOS.img:boot.bin OS_Kernel.sys
 	$(EDIMG) imgin:$(TOOLPATH)fdimg0at.tek \
 	wbinimg src:boot.bin len:512 from:0 to:0 \
 	copy from:OS_Kernel.sys to:@: \
+	copy from:back.bmp to:@: \
 	imgout:SmlOS.img
 	
 #一般生成规则
