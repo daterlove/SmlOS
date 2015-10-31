@@ -20,7 +20,7 @@ void wait_KBC_sendready(void);
 /* 初始化键盘控制电路 */
 void Init_Keyboard(void);
 /* 激活鼠标 */
-void Enable_Mouse(void);
+void Enable_Mouse(struct MOUSE_DEC *mdec);
 /* 接收鼠标数据 */
 int Mouse_Decode(struct MOUSE_DEC *mdec, unsigned char dat);
 

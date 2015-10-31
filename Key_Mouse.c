@@ -40,13 +40,14 @@ void Init_Keyboard(void)
 
 
 /* 激活鼠标 */
-void Enable_Mouse(void)
+void Enable_Mouse(struct MOUSE_DEC *mdec)
 {
 	wait_KBC_sendready();		/* 清空i8042的输入缓冲区 */
 	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);	/* 向i8042写入命令 */
 												/* 该命令表示将发生0x60端口的参数数据发生给鼠标	*/
 	wait_KBC_sendready();		/* 清空i8042的输入缓冲区 */
 	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);	/* 允许鼠标发数据 */
+	mdec->phase = 0;
 	return; 	
 }
 

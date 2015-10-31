@@ -51,21 +51,21 @@ void set_palette(int start, int end, unsigned char *rgb)
 	/*	if(i==0)
 		{
 	
-		io_out8(0x03c9, 0x60/4);
-		io_out8(0x03c9, 0xa0/4);
-		io_out8(0x03c9, 0xc0/4);
+		io_out8(0x03c9, *(p+2)/4);
+		io_out8(0x03c9, *(p+1)/4);
+		io_out8(0x03c9, *p/4);
 		
 		*pTemp=*p;
 		*(pTemp+1)=*(p+1);
 		*(pTemp+2)=*(p+2);
 		}
 		else
-		{*/
-	
+		{
+	*/
 		io_out8(0x03c9, *(p+2)/4);
 		io_out8(0x03c9, *(p+1)/4);
 		io_out8(0x03c9, *p/4);
-	//	}
+		//}
 		p +=4;
 	}
 	
@@ -93,37 +93,42 @@ void DrawBack(char *vram, int nXSize, int nYSize)
 {
 	RectFill(vram,nXSize,0xeb,0,0,nXSize,nYSize);//背景
 	
-	struct tagBITMAPFILEHEADER  *BmpHead= (struct tagBITMAPFILEHEADER *) 0x10AE02;//获取启动时候保存的信息
+	//struct tagBITMAPFILEHEADER  *BmpHead= (struct tagBITMAPFILEHEADER *) 0x10AE02;//获取启动时候保存的信息
 	
 	char szTemp[30];
 	unsigned char *pTemp;
-	pTemp=&(BmpHead->bfSize);
+	
+	//pTemp=&(BmpHead->bfSize);
 	//pTemp=(unsigned char *)0x10AE00;
-	sprintf(szTemp, "Bmp:%x",BmpHead->bfSize);
+	//sprintf(szTemp, "Bmp:%x",BmpHead->bfSize);
 	PutFont_Asc(vram, nXSize, nXSize-260, nYSize-23, COL_WHITE, szTemp); // 显示秒数信息 
 	
 	int i,j;
 	
-	unsigned char *p=0x10B236;//背景图片内存地址
+	unsigned char *pBmp=0x10B236;//背景图片内存地址
 	
-	int nXOffset=288;
+	//int nXOffset=288;
+	int nXOffset=100;
 	for(i=599;i>=0;i--)
 	{
 		for(j=0;j<800;j++)
 		{
-			/*
-			if(*p==0xff)
+			if(i<598)//最后一行图像不显示
 			{
-				vram[i * nXSize + j + nXOffset] =COL_WHITE;
+				if(j>=620)
+				{
+					vram[i* nXSize + j - 620 + nXOffset] =*pBmp;
+				}
+				else
+				{
+					vram[i* nXSize + j +180 + nXOffset] =*pBmp;
+	
+				}
 			}
-			else
-			{*/
-				vram[i * nXSize + j + nXOffset] =*p;
-			//}
-			p++;
+			pBmp++;
 		}
 	}
-	
+	/**/
 	
 	RectFill(vram,nXSize,COL_BLACK,0,nYSize-30,nXSize,nYSize);//任务栏
 	RectFill(vram,nXSize,COL_DARK_GREY,43,nYSize-25,43,nYSize-5);//任务栏左边线
@@ -134,12 +139,12 @@ void DrawBack(char *vram, int nXSize, int nYSize)
 	RectFill(vram,nXSize,COL_DARK_GREY,nXSize-70,nYSize-25,nXSize-70,nYSize-5);//任务栏右边线
 	
 	PutFont_Asc(vram, nXSize, nXSize-60, nYSize-23, COL_WHITE, "000 Sec"); // 显示秒数信息 
-	
-	//p=0x100000;
-	sprintf(szTemp, "Bmp:%x,%x,%x",*p,*(p+1),*(p+2));
-	//RectFill(vram,nXSize,COL_BLACK,nXSize-260,nYSize-23,nXSize,nYSize);//任务栏
-	//PutFont_Asc(vram, nXSize, nXSize-260, nYSize-23, COL_WHITE, szTemp); // 显示秒数信息 
-	/**/
+	/*
+	unsigned char *p=0x100000;
+	sprintf(szTemp, "Bmp:%x,%d,%d",*p,nXSize,nYSize);
+	RectFill(vram,nXSize,COL_BLACK,nXSize-260,nYSize-23,nXSize,nYSize);//任务栏
+	PutFont_Asc(vram, nXSize, 300, 200, COL_WHITE, szTemp); // 显示秒数信息 
+	*/
 }
 
 /*输出字符串*/

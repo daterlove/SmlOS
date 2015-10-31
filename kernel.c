@@ -89,9 +89,9 @@ void HariMain(void)
 	nMouseData0=512;
 	//	io_out8(PIC0_IMR, 0xf9); /* 这个bug调我N久，注视下留个纪念。。*/
 
-	io_out8(PIC1_IMR, 0xef); /* PIC1(11101111) (打开PS2鼠标中断 即IRQ12)*/	
+	//io_out8(PIC1_IMR, 0xef); /* PIC1(11101111) (打开PS2鼠标中断 即IRQ12)*/	
 	Init_Keyboard();/*初始化键盘控制电路*/	
-	Enable_Mouse();		/* 激活鼠标 */
+	Enable_Mouse(&mdec);		/* 激活鼠标 */
 
 /*----内存操作----*/
 	/* 检测4M~3G-1的内存,4M之前被占用，不能检测 */
@@ -187,7 +187,7 @@ void HariMain(void)
 	
 /*----显示系统信息----*/
 	//sprintf(s, "(%3d, %3d)", mx, my);
-	sprintf(szTemp, "  Screen:(%d, %d)", nXSize, nYSize);
+	sprintf(szTemp, " Screen:(%d, %d)", nXSize, nYSize);
 	putfonts8_asc_sht(Sht_Back, 0, 0,COL_RED,COL_WHITE, szTemp, 19);//在图层上显示文字
 	
 	sprintf(szTemp, "MemMaxSize:%d MB", nMemMaxSize/(1024*1024));	 
@@ -403,10 +403,11 @@ void HariMain(void)
 						my = nYSize-1;
 					}
 					
+					sheet_slide(Sht_Mouse, mx, my);	/* 更新鼠标图层的位置并显示新的鼠标图层 */
 					sprintf(s, "MousePos:(%3d, %3d)", mx, my);
 					putfonts8_asc_sht(Sht_Back, 0, 39,COL_BLACK,COL_GREEN, s, 19);//在图层上显示文字
 					
-					sheet_slide(Sht_Mouse, mx, my);	/* 更新鼠标图层的位置并显示新的鼠标图层 */
+					
 				
 				}
 			}
