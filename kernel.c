@@ -1,6 +1,6 @@
 #include "common.h"
 
-#define TEST_ING 0
+#define TEST_ING 1
 
 struct FIFO32 SysFifo;
 int nKeyData0,nMouseData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区） 
@@ -188,13 +188,13 @@ void HariMain(void)
 /*----显示系统信息----*/
 	//sprintf(s, "(%3d, %3d)", mx, my);
 	sprintf(szTemp, " Screen:(%d, %d)", nXSize, nYSize);
-	putfonts8_asc_sht(Sht_Back, 0, 0,COL_RED,COL_WHITE, szTemp, 19);//在图层上显示文字
+	putfonts8_asc_sht(Sht_Back, 0, 0,COL_RED,COL_WHITE, szTemp, 20);//在图层上显示文字
 	
 	sprintf(szTemp, "MemMaxSize:%d MB", nMemMaxSize/(1024*1024));	 
-	putfonts8_asc_sht(Sht_Back, 0, 57,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
+	putfonts8_asc_sht(Sht_Back, 0, 57,COL_BLACK,COL_GREEN, szTemp, 17);//在图层上显示文字
 	
 	sprintf(szTemp, "MemFree:%d KB", memman_total(memman) /1024);	
-	putfonts8_asc_sht(Sht_Back, 0, 76,COL_BLACK,COL_GREEN, szTemp, 16);//在图层上显示文字
+	putfonts8_asc_sht(Sht_Back, 0, 76,COL_BLACK,COL_GREEN, szTemp, 17);//在图层上显示文字
 
 
 /*----定时器设置----*/	
@@ -380,7 +380,7 @@ void HariMain(void)
 						s[2] = 'C';
 					}
 
-					putfonts8_asc_sht(Sht_Back, 32, 20,COL_BLACK,COL_GREEN, s, 15);//在图层上显示文字
+					putfonts8_asc_sht(Sht_Back, 32, 20,COL_BLACK,COL_GREEN, s, 16);//在图层上显示文字
 					
 					mx += mdec.x;					/* 更新新的鼠标位置 */
 					my += mdec.y;
@@ -405,7 +405,7 @@ void HariMain(void)
 					
 					sheet_slide(Sht_Mouse, mx, my);	/* 更新鼠标图层的位置并显示新的鼠标图层 */
 					sprintf(s, "MousePos:(%3d, %3d)", mx, my);
-					putfonts8_asc_sht(Sht_Back, 0, 39,COL_BLACK,COL_GREEN, s, 19);//在图层上显示文字
+					putfonts8_asc_sht(Sht_Back, 0, 39,COL_BLACK,COL_GREEN, s, 20);//在图层上显示文字
 					
 					
 				

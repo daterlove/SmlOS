@@ -51,8 +51,8 @@ kernel.hrb : kernel.bim
 OsHead.bin : OsHead.nas 
 	$(NASK) OsHead.nas OsHead.bin OsHead.lst
 
-OS_Kernel.sys : OsHead.bin	kernel.hrb	
-	copy /B OsHead.bin+kernel.hrb OS_Kernel.sys
+OSKernel.sys : OsHead.bin	kernel.hrb	
+	copy /B OsHead.bin+kernel.hrb OSKernel.sys
 	
 #×ÖÌåÉú³É
 Font.bin : Font.txt
@@ -60,10 +60,10 @@ Font.bin : Font.txt
 Font.obj : Font.bin Makefile
 	$(BIN2OBJ) Font.bin Font.obj _Font
 	
-SmlOS.img:boot.bin OS_Kernel.sys 
+SmlOS.img:boot.bin OSKernel.sys 
 	$(EDIMG) imgin:$(TOOLPATH)fdimg0at.tek \
 	wbinimg src:boot.bin len:512 from:0 to:0 \
-	copy from:OS_Kernel.sys to:@: \
+	copy from:OSKernel.sys to:@: \
 	copy from:back.bmp to:@: \
 	imgout:SmlOS.img
 	

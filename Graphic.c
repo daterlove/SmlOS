@@ -108,7 +108,8 @@ void DrawBack(char *vram, int nXSize, int nYSize)
 	unsigned char *pBmp=0x10B236;//±³¾°Í¼Æ¬ÄÚ´æµØÖ·
 	
 	//int nXOffset=288;
-	int nXOffset=100;
+	int nXOffset=230;
+	int nYOffset=100;
 	for(i=599;i>=0;i--)
 	{
 		for(j=0;j<800;j++)
@@ -117,11 +118,11 @@ void DrawBack(char *vram, int nXSize, int nYSize)
 			{
 				if(j>=620)
 				{
-					vram[i* nXSize + j - 620 + nXOffset] =*pBmp;
+					vram[(i+nYOffset)* nXSize + j - 620 + nXOffset] =*pBmp;
 				}
 				else
 				{
-					vram[i* nXSize + j +180 + nXOffset] =*pBmp;
+					vram[(i+nYOffset)* nXSize + j +180 + nXOffset] =*pBmp;
 	
 				}
 			}
