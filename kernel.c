@@ -1,6 +1,6 @@
 #include "common.h"
 
-#define TEST_ING 1
+#define TEST_ING 0
 
 struct FIFO32 SysFifo;
 int nKeyData0,nMouseData0;//鼠标键盘再接收数据时会加上的数字（为了合并fifo缓冲区） 
