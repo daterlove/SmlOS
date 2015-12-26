@@ -74,7 +74,7 @@ unsigned int memman_alloc(struct MEMMAN *man, unsigned int size)
 /* 内存释放函数 */
 int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size)
 {
-	int i, j;
+	unsigned int i, j;
 	/* 为便于归纳内存  将free[]按照addr的顺序排列 */
 	/* 所以 先查找应该放在哪里 */
 	for (i = 0; i < man->frees; i++) 

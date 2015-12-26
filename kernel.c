@@ -95,7 +95,7 @@ void HariMain(void)
 
 /*----内存操作----*/
 	/* 检测4M~3G-1的内存,4M之前被占用，不能检测 */
-	int nMemMaxSize=memtest(0x00400000, 0xbfffffff);	
+	unsigned int nMemMaxSize=memtest(0x00400000, 0xbfffffff);	
 	memman_init(memman);	/* 初始化内存管理结构 */
 	
 	/* 这段内存是4K~636K-1,这段内存是4K~636K-1,映像刚开始载入内存的内容，包括引导程序那部分*/
