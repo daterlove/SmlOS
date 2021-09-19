@@ -1,6 +1,8 @@
 org 0x7c00
 
 BOOT_STACK equ 0x7c00
+ROOT_DIR_SECTOR_START_INDEX equ 19
+ROOT_DIR_SECTOR_NUMBER equ 14
 
 disk_info:
     jmp entry
@@ -30,28 +32,54 @@ entry:
     mov ss, ax
     mov sp, BOOT_STACK
     mov bp, sp
+    sub sp, 6
 
     call clear_screen
     call reset_focus
+
+    push 9
     push BOOT_MESSAGE
     call show_message
-    pop ax
+    add sp, 4
+
+    call reset_floppy
+
+    ; [bp + 0] sector_start_index
+    ; [bp + 2]  sector_index
+    mov word [bp], ROOT_DIR_SECTOR_START_INDEX
+    mov word [bp + 2], 0
+
+sector_search_loop:
+    cmp word [bp + 2], ROOT_DIR_SECTOR_NUMBER
+    jz load_error
+    inc word [bp + 2]
+    jmp sector_search_loop
     jmp hlt_loop
 
+load_error:
+    push 12
+    push ERROR_MESSAGE
+    call show_message
+    add sp, 4
+
+    jmp hlt_loop
+
+; show_message(char* str, word size);
 show_message:
     push bp
+    mov bp, sp
     push ax
     push bx
     push dx
     push cx
     push es
-    mov	ax,	ds
-    mov	es,	ax
+    mov ax, ds
+    mov es, ax
     mov ax, 1301h
     mov bx, 000fh
     mov dx, 0000h
-    mov cx, 10
-    mov bp, [bp - 2]
+    mov cx, [bp + 6]
+    mov bp, [bp + 4]
     int 10h
     pop es
     pop cx
@@ -90,12 +118,24 @@ clear_screen:
     pop ax
     ret
 
+reset_floppy:
+    push ax
+    push dx
+    xor ah, ah
+    xor dl, dl
+    int 13h
+    pop dx
+    pop ax
+    ret
+
 hlt_loop:
     hlt
     jmp hlt_loop
 
 BOOT_MESSAGE:
-    db "booting.."
+    db "booting..", 0
+ERROR_MESSAGE:
+    db "load error..", 0
 
 times 510 - ($ - $$) db 0
 dw 0xaa55
