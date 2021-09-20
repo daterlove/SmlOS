@@ -7,23 +7,25 @@ ROOT_DIR_SECTOR_NUMBER equ 14
 disk_info:
     jmp entry
     nop
-    db "SML-OS  "       ; 启动区的名称,8字符
-    dw 512              ; 每扇区字节数
-    db  1               ; 每簇扇区数
-    dw  1               ; FAT文件分配表之前的引导扇区
-    db  2               ; FAT表的个数
-    dw  224             ; 根目录 文件最大数
-    dw  2880            ; 逻辑 扇区 总数
-    db  0xf0            ; 磁盘种类
-    dw  9               ; 每个FAT占用 多少扇区
-    dw  18              ; 每磁道 扇区数
-    dw  2               ; 磁头数
-    dd  0               ; 隐藏扇区数
-    dd  2880            ; 如果逻辑扇区总数为0，则在这里记录扇区总数
-    db  0,0,0x29        ; 中断13的驱动器号，未使用，扩展引导标志
-    dd  0Xffffffff      ; 卷序列号
-    db  "SML-OS     "   ; 卷标, 11个字符
-    db  "FAT12   "      ; 文件系统类型，8个字符
+    db "SML-OS  "      ; 启动区的名称,8字符
+    dw 512             ; 每扇区字节数
+    db 1               ; 每簇扇区数
+    dw 1               ; FAT文件分配表之前的引导扇区
+    db 2               ; FAT表的个数
+    dw 224             ; 根目录 文件最大数
+    dw 2880            ; 逻辑 扇区 总数
+    db 0xf0            ; 磁盘种类
+    dw 9               ; 每个FAT占用 多少扇区
+    dw 18              ; 每磁道 扇区数
+    dw 2               ; 磁头数
+    dd 0               ; 隐藏扇区数
+    dd 2880            ; 如果逻辑扇区总数为0，则在这里记录扇区总数
+    db 0               ; 中断13的驱动器号
+    db 0               ; 未使用
+    db 0x29            ; 扩展引导标志
+    dd 0Xffffffff      ; 卷序列号
+    db "SML-OS     "   ; 卷标, 11个字符
+    db "FAT12   "      ; 文件系统类型，8个字符
 
 entry:
     mov ax, 0
@@ -43,6 +45,12 @@ entry:
     add sp, 4
 
     call reset_floppy
+
+    push 0x820
+    push 19
+    call read_sector
+    add sp, 4
+    jmp hlt_loop
 
     ; [bp + 0] sector_start_index
     ; [bp + 2]  sector_index
@@ -78,8 +86,8 @@ show_message:
     mov ax, 1301h
     mov bx, 000fh
     mov dx, 0000h
-    mov cx, [bp + 6]
-    mov bp, [bp + 4]
+    mov cx, [bp + 6]    ; 字符串长度
+    mov bp, [bp + 4]    ; es:bp字符串地址
     int 10h
     pop es
     pop cx
@@ -126,6 +134,37 @@ reset_floppy:
     int 13h
     pop dx
     pop ax
+    ret
+
+; read_sector(word sector_num, char* addr);
+read_sector:
+    push bp
+    mov bp, sp
+
+    mov ax, [bp + 6]
+    mov es, ax          ; 目的内存地址段
+
+    mov ax, [bp + 4]
+    mov bx, 18
+    div bx
+    inc ax
+    mov cl, al          ; 扇区
+
+    mov bx, dx
+    mov ax, dx
+    and ax, 1
+    mov dh, al          ; 磁头
+
+    shr bx, 1
+    mov ch, bl          ; 柱面
+
+    mov bx, 0           ; 读取地址 es:bx
+
+    mov dl, 0           ; 驱动器A
+    mov ah, 0x02        ; 读盘指令
+    mov al, 0x1         ; 读一个扇区
+    int 0x13            ; 调用bios
+    pop bp
     ret
 
 hlt_loop:
