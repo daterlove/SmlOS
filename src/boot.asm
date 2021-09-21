@@ -3,6 +3,7 @@ org 0x7c00
 BOOT_STACK equ 0x7c00
 ROOT_DIR_SECTOR_START_INDEX equ 19
 ROOT_DIR_SECTOR_END_INDEX equ 22
+FAT_ENTRY_ADDR equ 0x8000
 FAT_ENTRY_ADDR_SEGMENT equ 0x800
 
 disk_info:
@@ -46,6 +47,7 @@ boot_entry:
     add sp, 4
 
     ;push 4
+
     ;push LOADER_BIN
     ;push BOOT_MESSAGE
     ;call memcmp
@@ -55,6 +57,12 @@ boot_entry:
     push 1
     call read_sector
     add sp, 4
+
+
+    push 4
+    call get_fat_entry
+    add sp, 2
+
     call find_loader_entry
 
     jmp hlt_loop
@@ -242,6 +250,56 @@ label_reading_retry:
     int 0x13            ; 调用bios
     jc label_reading_retry
 
+    mov sp, bp
+    pop bp
+    ret
+
+; get_fat_entry(word index)
+get_fat_entry:
+    push bp
+    mov bp, sp
+    ; ret = index % 2
+    mov ax, word [bp + 4]
+    and ax, 1
+
+    ; (fat_entry) + ((index - ret) * 3 / 2)
+    mov dx, word [bp + 4]
+    sub dx, ax
+    imul dx, 3
+    shr dx, 1
+    add dx, FAT_ENTRY_ADDR
+
+    ; ((ptr[1] & 0x0f) << 8) | ptr[0]
+    cmp al, 1
+    je label_index_odd_number
+    mov si, dx
+    inc si
+    lodsb
+    and ax, 0x0f
+    shl ax, 8
+    mov bx, ax
+
+    mov si, dx
+    lodsb
+    or ax, bx
+    jmp label_get_fat_entry_final
+
+label_index_odd_number:
+    ; (ptr[2] << 4) | ((ptr[1] >> 4) & 0x0F)
+    mov si, dx
+    add si, 2
+    lodsb
+    shl ax, 4
+    mov bx, ax
+
+    mov si, dx
+    inc si
+    lodsb
+    shr ax, 4
+    and ax, 0x0f
+    or ax, bx
+
+label_get_fat_entry_final:
     mov sp, bp
     pop bp
     ret
