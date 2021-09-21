@@ -38,16 +38,16 @@ boot_entry:
     mov ss, ax
     mov sp, BOOT_STACK
     mov bp, sp
-    sub sp, 6
+
+    int 13h         ; 重置软驱
 
     push FAT_ENTRY_ADDR_SEGMENT
     push 1
     call read_sector
-    add sp, 4
 
     call find_loader_entry
     cmp ax, 0
-    jne hlt_loop
+    jne load_error
 
     call start_loader
 
@@ -76,7 +76,7 @@ start_loader_loop:
     jmp start_loader_loop
 
 run_loader:
-    jmp DATA_ADDR
+    jmp DATA_ADDR       ; 跳转至loader
 
 find_loader_entry:
     push bp
@@ -196,46 +196,6 @@ label_memcmp_final:
     pop bp
     ret
 
-; show_message(char* str, word size);
-;show_message:
-;    push bp
-;    mov bp, sp
-;    mov ax, 0
-;    mov es, ax
-;    mov ax, 1301h
-;    mov bx, 000fh
-;    mov dx, 0000h
-;    mov cx, [bp + 6]    ; 字符串长度
-;    mov bp, [bp + 4]    ; es:bp字符串地址
-;    int 10h
-;    pop bp
-;    ret
-
-;reset_focus:
-;    mov ax, 0200h
-;    mov bx, 0000h
-;    mov dx, 0000h
-;    int 10h
-;    ret
-
-;clear_screen:
-;    mov ax, 0600h
-;    mov bx, 0700h
-;    mov cx, 0
-;    mov dx, 0184fh
-;    int 10h
-;    ret
-
-reset_floppy:
-    push ax
-    push dx
-    xor ah, ah
-    xor dl, dl
-    int 13h
-    pop dx
-    pop ax
-    ret
-
 ; read_sector(word sector_num, char* addr);
 read_sector:
     push bp
@@ -334,25 +294,26 @@ label_get_fat_entry_final:
     pop bp
     ret
 
-;load_error:
-;    push 12
-;    push ERROR_MESSAGE
-;    call show_message
-;    add sp, 4
-
-;    jmp hlt_loop
+load_error:
+    mov ax, 1301h
+    mov bx, 000fh
+    mov dx, 0000h
+    mov cx, 12              ; 字符串长度
+    mov bp, ERROR_MESSAGE    ; es:bp字符串地址
+    int 10h
+    jmp hlt_loop
 
 hlt_loop:
     hlt
     jmp hlt_loop
 
 ; 变量
-g_loader_start_cluster dw 0
-g_loader_file_size dw 0
+g_loader_start_cluster
+    dw 0
+g_loader_file_size
+    dw 0
 
 ; 字符串
-;BOOT_MESSAGE:
-;    db "booting..", 0
 ERROR_MESSAGE:
     db "load error..", 0
 LOADER_BIN_STRING:
