@@ -3,6 +3,7 @@ org 0x7c00
 BOOT_STACK equ 0x7c00
 ROOT_DIR_SECTOR_START_INDEX equ 19
 ROOT_DIR_SECTOR_END_INDEX equ 22
+FAT_ENTRY_ADDR_SEGMENT equ 0x800
 
 disk_info:
     jmp boot_entry
@@ -44,17 +45,16 @@ boot_entry:
     call show_message
     add sp, 4
 
-    push 4
-    push LOADER_BIN
-    push BOOT_MESSAGE
-    call memcmp
-    add sp, 6
+    ;push 4
+    ;push LOADER_BIN
+    ;push BOOT_MESSAGE
+    ;call memcmp
+    ;add sp, 6
 
-    ;add sp, 4
-    ;push 0x820
-    ;push 19
-    ;call read_sector
-    ;add sp, 4
+    push FAT_ENTRY_ADDR_SEGMENT
+    push 1
+    call read_sector
+    add sp, 4
     call find_loader_entry
 
     jmp hlt_loop
@@ -221,15 +221,15 @@ read_sector:
     mov bl, 18
     div bl
 
-    mov bl, al
+    mov bl, ah
     inc bl
     mov cl, bl          ; 扇区
 
-    mov bl, ah
+    mov bl, al
     and bl, 1
     mov dh, bl          ; 磁头
 
-    mov bl, ah
+    mov bl, al
     shr bl, 1
     mov ch, bl          ; 柱面
 
