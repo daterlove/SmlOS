@@ -5,6 +5,8 @@ ROOT_DIR_SECTOR_START_INDEX equ 19
 ROOT_DIR_SECTOR_END_INDEX equ 22
 FAT_ENTRY_ADDR equ 0x8000
 FAT_ENTRY_ADDR_SEGMENT equ 0x800
+DATA_ADDR equ 0x8200
+DATA_ADDR_SEGMENT equ 0x820
 
 disk_info:
     jmp boot_entry
@@ -38,80 +40,120 @@ boot_entry:
     mov bp, sp
     sub sp, 6
 
-    call clear_screen
-    call reset_focus
-
-    push 9
-    push BOOT_MESSAGE
-    call show_message
-    add sp, 4
-
-    ;push 4
-
-    ;push LOADER_BIN
-    ;push BOOT_MESSAGE
-    ;call memcmp
-    ;add sp, 6
-
     push FAT_ENTRY_ADDR_SEGMENT
     push 1
     call read_sector
     add sp, 4
 
+    call find_loader_entry
+    cmp ax, 0
+    jne hlt_loop
 
-    push 4
+    call start_loader
+
+start_loader:
+    mov cx, DATA_ADDR_SEGMENT
+    mov dx, [g_loader_start_cluster]
+
+start_loader_loop:
+    push cx
+    add dx, 31      ; 定位到数据区位置
+    push dx
+    call read_sector
+    add sp, 4
+
+    ; 获取下一个加载扇区
+    sub dx, 31
+    push dx
     call get_fat_entry
     add sp, 2
 
-    call find_loader_entry
+    cmp ax, 0xff7
+    ja run_loader
+    
+    mov dx, ax
+    add cx, 512
+    jmp start_loader_loop
 
-    jmp hlt_loop
-
-load_error:
-    push 12
-    push ERROR_MESSAGE
-    call show_message
-    add sp, 4
-
-    jmp hlt_loop
+run_loader:
+    jmp DATA_ADDR
 
 find_loader_entry:
     push bp
     mov bp, sp
-    sub sp, 2
 
-    ; [bp - 2] sector_start_index
-    mov word [bp - 2], ROOT_DIR_SECTOR_START_INDEX
+    mov bx, ROOT_DIR_SECTOR_START_INDEX
 
 label_search_loop:
-    cmp word [bp - 2], ROOT_DIR_SECTOR_END_INDEX
-    jae label_not_find_loader
+    cmp bx, ROOT_DIR_SECTOR_END_INDEX
+    jae label_find_loader_entry_false
 
-    push 0x820
-    mov ax, [bp - 2]
+    push DATA_ADDR_SEGMENT
+    mov ax, bx
     push ax
     call read_sector
-    add sp, 2
+    add sp, 4
 
+    push DATA_ADDR
     call find_sector_loader_entry
     add sp, 2
+    cmp ax, 0
+    jne label_find_loader_entry_true
 
     inc word [bp - 2]
     jmp label_search_loop
 
-label_not_find_loader:
+label_find_loader_entry_false:
     mov ax, 1
+    jmp label_find_loader_entry_final
 
-label_find_loader_final:
+label_find_loader_entry_true:
+    mov si, bx
+    add si, 0x1a    ; 起始簇
+    lodsw
+    mov [g_loader_start_cluster], ax
+
+    mov si, bx
+    add si, 0x1c    ; 文件大小
+    lodsw
+    mov [g_loader_file_size], ax
+    xor ax, ax
+
+label_find_loader_entry_final:
     mov sp, bp
     pop bp
     ret
 
+; find_sector_loader_entry(char* sector_addr)
+; 返回值 对应项首地址
 find_sector_loader_entry:
     push bp
     mov bp, sp
-    sub sp, 2
+    mov dx, 0
 
+find_sector_loader_loop:
+    push 11
+    push LOADER_BIN_STRING
+    mov bx, [bp + 4]
+    add bx, dx
+    push bx
+    call memcmp
+    sub esp, 6
+    cmp ax, 0
+    je label_find_sector_loader_entry_true
+    add dx, 32
+    cmp dx, (512 - 32)
+    ja label_find_sector_loader_entry_false
+    jmp find_sector_loader_loop
+
+label_find_sector_loader_entry_false:
+    xor ax, ax
+    jmp label_memcmp_final
+label_find_sector_loader_entry_true:
+    mov ax, bx
+label_find_sector_loader_entry_final:
+    mov sp, bp
+    pop bp
     ret
 
 ; memcmp(char* buffer1, char* buffer2, word size);
@@ -155,58 +197,34 @@ label_memcmp_final:
     ret
 
 ; show_message(char* str, word size);
-show_message:
-    push bp
-    mov bp, sp
-    push ax
-    push bx
-    push dx
-    push cx
-    push es
-    mov ax, ds
-    mov es, ax
-    mov ax, 1301h
-    mov bx, 000fh
-    mov dx, 0000h
-    mov cx, [bp + 6]    ; 字符串长度
-    mov bp, [bp + 4]    ; es:bp字符串地址
-    int 10h
-    pop es
-    pop cx
-    pop dx
-    pop bx
-    pop ax
-    pop bp
-    ret
+;show_message:
+;    push bp
+;    mov bp, sp
+;    mov ax, 0
+;    mov es, ax
+;    mov ax, 1301h
+;    mov bx, 000fh
+;    mov dx, 0000h
+;    mov cx, [bp + 6]    ; 字符串长度
+;    mov bp, [bp + 4]    ; es:bp字符串地址
+;    int 10h
+;    pop bp
+;    ret
 
-reset_focus:
-    push ax
-    push bx
-    push dx
-    mov ax, 0200h
-    mov bx, 0000h
-    mov dx, 0000h
-    int 10h
-    pop dx
-    pop bx
-    pop ax
-    ret
+;reset_focus:
+;    mov ax, 0200h
+;    mov bx, 0000h
+;    mov dx, 0000h
+;    int 10h
+;    ret
 
-clear_screen:
-    push ax
-    push bx
-    push cx
-    push dx
-    mov ax, 0600h
-    mov bx, 0700h
-    mov cx, 0
-    mov dx, 0184fh
-    int 10h
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
+;clear_screen:
+;    mov ax, 0600h
+;    mov bx, 0700h
+;    mov cx, 0
+;    mov dx, 0184fh
+;    int 10h
+;    ret
 
 reset_floppy:
     push ax
@@ -222,6 +240,10 @@ reset_floppy:
 read_sector:
     push bp
     mov bp, sp
+    push bx
+    push cx
+    push dx
+
     mov ax, [bp + 6]
     mov es, ax          ; 目的内存地址段
 
@@ -250,6 +272,9 @@ label_reading_retry:
     int 0x13            ; 调用bios
     jc label_reading_retry
 
+    pop dx
+    pop cx
+    pop bx
     mov sp, bp
     pop bp
     ret
@@ -258,6 +283,9 @@ label_reading_retry:
 get_fat_entry:
     push bp
     mov bp, sp
+    push bx
+    push dx
+
     ; ret = index % 2
     mov ax, word [bp + 4]
     and ax, 1
@@ -300,9 +328,19 @@ label_index_odd_number:
     or ax, bx
 
 label_get_fat_entry_final:
+    pop dx
+    pop bx
     mov sp, bp
     pop bp
     ret
+
+;load_error:
+;    push 12
+;    push ERROR_MESSAGE
+;    call show_message
+;    add sp, 4
+
+;    jmp hlt_loop
 
 hlt_loop:
     hlt
@@ -313,11 +351,11 @@ g_loader_start_cluster dw 0
 g_loader_file_size dw 0
 
 ; 字符串
-BOOT_MESSAGE:
-    db "booting..", 0
+;BOOT_MESSAGE:
+;    db "booting..", 0
 ERROR_MESSAGE:
     db "load error..", 0
-LOADER_BIN:
+LOADER_BIN_STRING:
     db "LOADER  BIN", 0
 
 times 510 - ($ - $$) db 0
