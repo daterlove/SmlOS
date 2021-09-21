@@ -57,26 +57,25 @@ start_loader:
 
 start_loader_loop:
     push cx
-    add dx, 31      ; 定位到数据区位置
+    add dx, 31              ; 定位到数据区位置
     push dx
     call read_sector
     add sp, 4
 
-    ; 获取下一个加载扇区
     sub dx, 31
     push dx
-    call get_fat_entry
+    call get_fat_entry      ; 获取下一个加载扇区
     add sp, 2
 
     cmp ax, 0xff7
     ja run_loader
     
     mov dx, ax
-    add cx, 512
+    add cx, 0x20            ; 加载段增加0x20即读取地址加512字节
     jmp start_loader_loop
 
 run_loader:
-    jmp DATA_ADDR       ; 跳转至loader
+    jmp DATA_ADDR           ; 跳转至loader
 
 find_loader_entry:
     push bp
@@ -298,8 +297,8 @@ load_error:
     mov ax, 1301h
     mov bx, 000fh
     mov dx, 0000h
-    mov cx, 12              ; 字符串长度
-    mov bp, ERROR_MESSAGE    ; es:bp字符串地址
+    mov cx, 12                  ; 字符串长度
+    mov bp, ERROR_MESSAGE       ; es:bp字符串地址
     int 10h
     jmp hlt_loop
 
@@ -308,10 +307,8 @@ hlt_loop:
     jmp hlt_loop
 
 ; 变量
-g_loader_start_cluster
-    dw 0
-g_loader_file_size
-    dw 0
+g_loader_start_cluster dw 0
+g_loader_file_size dw 0
 
 ; 字符串
 ERROR_MESSAGE:
