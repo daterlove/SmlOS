@@ -2,10 +2,10 @@ org 0x7c00
 
 BOOT_STACK equ 0x7c00
 ROOT_DIR_SECTOR_START_INDEX equ 19
-ROOT_DIR_SECTOR_NUMBER equ 14
+ROOT_DIR_SECTOR_END_INDEX equ 22
 
 disk_info:
-    jmp entry
+    jmp boot_entry
     nop
     db "SML-OS  "      ; 启动区的名称,8字符
     dw 512             ; 每扇区字节数
@@ -27,7 +27,7 @@ disk_info:
     db "SML-OS     "   ; 卷标, 11个字符
     db "FAT12   "      ; 文件系统类型，8个字符
 
-entry:
+boot_entry:
     mov ax, 0
     mov ds, ax
     mov es, ax
@@ -44,24 +44,19 @@ entry:
     call show_message
     add sp, 4
 
-    call reset_floppy
+    push 4
+    push LOADER_BIN
+    push BOOT_MESSAGE
+    call memcmp
+    add sp, 6
 
-    push 0x820
-    push 19
-    call read_sector
-    add sp, 4
-    jmp hlt_loop
+    ;add sp, 4
+    ;push 0x820
+    ;push 19
+    ;call read_sector
+    ;add sp, 4
+    call find_loader_entry
 
-    ; [bp + 0] sector_start_index
-    ; [bp + 2]  sector_index
-    mov word [bp], ROOT_DIR_SECTOR_START_INDEX
-    mov word [bp + 2], 0
-
-sector_search_loop:
-    cmp word [bp + 2], ROOT_DIR_SECTOR_NUMBER
-    jz load_error
-    inc word [bp + 2]
-    jmp sector_search_loop
     jmp hlt_loop
 
 load_error:
@@ -71,6 +66,85 @@ load_error:
     add sp, 4
 
     jmp hlt_loop
+
+find_loader_entry:
+    push bp
+    mov bp, sp
+    sub sp, 2
+
+    ; [bp - 2] sector_start_index
+    mov word [bp - 2], ROOT_DIR_SECTOR_START_INDEX
+
+label_search_loop:
+    cmp word [bp - 2], ROOT_DIR_SECTOR_END_INDEX
+    jae label_not_find_loader
+
+    push 0x820
+    mov ax, [bp - 2]
+    push ax
+    call read_sector
+    add sp, 2
+
+    call find_sector_loader_entry
+    add sp, 2
+
+    inc word [bp - 2]
+    jmp label_search_loop
+
+label_not_find_loader:
+    mov ax, 1
+
+label_find_loader_final:
+    mov sp, bp
+    pop bp
+    ret
+
+find_sector_loader_entry:
+    push bp
+    mov bp, sp
+    sub sp, 2
+
+    ret
+
+; memcmp(char* buffer1, char* buffer2, word size);
+memcmp:
+    push bp
+    mov bp, sp
+    push cx
+
+    mov word [bp - 2], 0    ; word i
+    jmp label_memcmp_check_loop
+
+label_memcmp_loop:
+    mov ax, [bp - 2]
+    inc ax
+    mov word [bp - 2], ax
+
+label_memcmp_check_loop:
+    mov cx, word [bp - 2]
+    cmp cx, word [bp + 8]   ; size
+    jae label_memcmp_true
+
+    mov si, [bp + 4]        ; buffer1
+    add si, [bp - 2]        ; buffer1 + i
+    lodsb
+    mov cl, al
+
+    mov si, [bp + 6]        ; buffer2
+    add si, [bp - 2]        ; buffer2 + i
+    lodsb
+    cmp al, cl
+    je label_memcmp_loop
+
+label_memcmp_false:
+    mov ax, 1
+    jmp label_memcmp_final
+label_memcmp_true:
+    xor ax, ax
+label_memcmp_final:
+    mov sp, bp
+    pop bp
+    ret
 
 ; show_message(char* str, word size);
 show_message:
@@ -140,30 +214,35 @@ reset_floppy:
 read_sector:
     push bp
     mov bp, sp
-
     mov ax, [bp + 6]
     mov es, ax          ; 目的内存地址段
 
     mov ax, [bp + 4]
-    mov bx, 18
-    div bx
-    inc ax
-    mov cl, al          ; 扇区
+    mov bl, 18
+    div bl
 
-    mov bx, dx
-    mov ax, dx
-    and ax, 1
-    mov dh, al          ; 磁头
+    mov bl, al
+    inc bl
+    mov cl, bl          ; 扇区
 
-    shr bx, 1
+    mov bl, ah
+    and bl, 1
+    mov dh, bl          ; 磁头
+
+    mov bl, ah
+    shr bl, 1
     mov ch, bl          ; 柱面
 
     mov bx, 0           ; 读取地址 es:bx
-
     mov dl, 0           ; 驱动器A
+
+label_reading_retry:
     mov ah, 0x02        ; 读盘指令
     mov al, 0x1         ; 读一个扇区
     int 0x13            ; 调用bios
+    jc label_reading_retry
+
+    mov sp, bp
     pop bp
     ret
 
@@ -171,10 +250,17 @@ hlt_loop:
     hlt
     jmp hlt_loop
 
+; 变量
+g_loader_start_cluster dw 0
+g_loader_file_size dw 0
+
+; 字符串
 BOOT_MESSAGE:
     db "booting..", 0
 ERROR_MESSAGE:
     db "load error..", 0
+LOADER_BIN:
+    db "LOADER  BIN", 0
 
 times 510 - ($ - $$) db 0
 dw 0xaa55
