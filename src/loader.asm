@@ -1,13 +1,20 @@
 org 0x8200
+jmp loader_entry
+
+[SECTION .s16]
+[BITS 16]
 
 loader_entry:
     call clear_screen
     call reset_focus
 
+    call open_a20_bus
+
     push 9
     push LOADING_MESSAGE
     call show_message
     add sp, 4
+
 
     jmp hlt_loop
 
@@ -33,6 +40,7 @@ show_message:
     pop dx
     pop bx
     pop ax
+    mov sp, bp
     pop bp
     ret
 
@@ -64,9 +72,35 @@ clear_screen:
     pop bx
     pop ax
     ret
+    
+open_a20_bus:
+    push bp
+    mov bp, sp
+    call wait_keyboard
+
+    mov al, 0xd1
+    out 0x64, al
+    call wait_keyboard
+
+    mov al, 0xdf            ;开启A20总线
+    out 0x60, al
+    call wait_keyboard
+
+    mov sp, bp
+    pop bp
+    ret
+
+wait_keyboard:
+    in al, 0x64             ; 从0x64端口读取数据
+    and al, 0x2             ; 测试i8042输入缓冲区是否为空
+    jnz wait_keyboard       ; 直到输入缓冲区为空为止
+    ret
+
 hlt_loop:
     hlt
     jmp hlt_loop
+
+
 
 ; 字符串
 LOADING_MESSAGE:
