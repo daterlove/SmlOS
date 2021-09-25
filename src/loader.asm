@@ -76,15 +76,12 @@ clear_screen:
 open_a20_bus:
     push bp
     mov bp, sp
-    call wait_keyboard
 
-    mov al, 0xd1
-    out 0x64, al
-    call wait_keyboard
-
-    mov al, 0xdf            ;开启A20总线
-    out 0x60, al
-    call wait_keyboard
+    push ax
+    in al, 92h
+    or al, 00000010b
+    out	92h, al             ; 利用A20快速门开启总线
+    pop	ax
 
     mov sp, bp
     pop bp
@@ -99,8 +96,6 @@ wait_keyboard:
 hlt_loop:
     hlt
     jmp hlt_loop
-
-
 
 ; 字符串
 LOADING_MESSAGE:
