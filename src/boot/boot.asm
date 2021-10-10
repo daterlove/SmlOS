@@ -5,8 +5,8 @@ ROOT_DIR_SECTOR_START_INDEX equ 19
 ROOT_DIR_SECTOR_END_INDEX equ 22
 FAT_ENTRY_ADDR equ 0x8000
 FAT_ENTRY_ADDR_SEGMENT equ 0x800
-DATA_ADDR equ 0x9200
-DATA_ADDR_SEGMENT equ 0x920
+DATA_ADDR equ 0x9400
+DATA_ADDR_SEGMENT equ 0x940
 
 disk_info:
     jmp boot_entry
@@ -107,6 +107,7 @@ label_find_loader_entry_false:
     jmp label_find_loader_entry_final
 
 label_find_loader_entry_true:
+    mov bx, ax
     mov si, bx
     add si, 0x1a    ; 起始簇
     lodsw

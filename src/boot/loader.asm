@@ -1,8 +1,17 @@
-org 0x9200
+org 0x9400
 
 BOOT_STACK equ 0x7c00
+
+ROOT_DIR_SECTOR_START_INDEX equ 19
+ROOT_DIR_SECTOR_END_INDEX equ 22
+
 FAT_ENTRY_ADDR equ 0x8000
 FAT_ENTRY_ADDR_SEGMENT equ 0x800
+
+DATA_ADDR equ 0x9100
+DATA_ADDR_SEGMENT equ 0x910
+
+KERNEL_ADDR equ 0x100000
 
 jmp loader_entry
 
@@ -28,39 +37,42 @@ loader_entry:
 
     mov eax, cr0
     or eax, 1
-    mov cr0, eax          ; 开启保护模式
+    mov cr0, eax                ; 开启保护模式
 
     mov eax, cr0
     and al, 11111110b
-    mov cr0, eax          ; 返回实模式
+    mov cr0, eax                ; 返回实模式
     sti
 
-    call reset_floppy     ; 重置软驱
+    call reset_floppy           ; 重置软驱
 
     call load_fat_entry
+
+    call find_kernel_entry
+    cmp ax, 0
+    jne load_kernel_error
 
     push 9
     push LOADING_MESSAGE
     call show_message
     add sp, 4
 
-
     jmp hlt_loop
 
-    mov ax, 1 * 8         ; 重新设置段寄存器
-    mov ds, ax            ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
+    mov ax, 1 * 8               ; 重新设置段寄存器
+    mov ds, ax                  ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
     mov es, ax
     mov fs, ax
     mov gs, ax
     mov ss, ax
 
-    jmp protect_mode                ; 切换到保护模式，指令解释变化，必须立马跳转
+    jmp protect_mode            ; 切换到保护模式，指令解释变化，必须立马跳转
 
 ;---------------------------------------------
 ;进入保护模式
 protect_mode:
-    mov ax, 1 * 8         ; 重新设置段寄存器
-    mov ds, ax            ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
+    mov ax, 1 * 8               ; 重新设置段寄存器
+    mov ds, ax                  ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
     mov es, ax
     mov fs, ax
     mov gs, ax
@@ -84,8 +96,8 @@ show_message:
     mov ax, 1301h
     mov bx, 000fh
     mov dx, 0000h
-    mov cx, [bp + 6]    ; 字符串长度
-    mov bp, [bp + 4]    ; es:bp字符串地址
+    mov cx, [bp + 6]            ; 字符串长度
+    mov bp, [bp + 4]            ; es:bp字符串地址
     int 10h
     pop es
     pop cx
@@ -215,7 +227,7 @@ read_sector:
     push dx
 
     mov ax, [bp + 6]
-    mov es, ax          ; 目的内存地址段
+    mov es, ax                  ; 目的内存地址段
 
     mov ax, [bp + 4]
     mov bl, 18
@@ -223,23 +235,23 @@ read_sector:
 
     mov bl, ah
     inc bl
-    mov cl, bl          ; 扇区
+    mov cl, bl                  ; 扇区
 
     mov bl, al
     and bl, 1
-    mov dh, bl          ; 磁头
+    mov dh, bl                  ; 磁头
 
     mov bl, al
     shr bl, 1
-    mov ch, bl          ; 柱面
+    mov ch, bl                  ; 柱面
 
-    mov bx, 0           ; 读取地址 es:bx
-    mov dl, 0           ; 驱动器A
+    mov bx, 0                   ; 读取地址 es:bx
+    mov dl, 0                   ; 驱动器A
 
 label_reading_retry:
-    mov ah, 0x02        ; 读盘指令
-    mov al, 0x1         ; 读一个扇区
-    int 0x13            ; 调用bios
+    mov ah, 0x02                ; 读盘指令
+    mov al, 0x1                 ; 读一个扇区
+    int 0x13                    ; 调用bios
     jc label_reading_retry
 
     pop dx
@@ -249,13 +261,155 @@ label_reading_retry:
     pop bp
     ret
 
+find_kernel_entry:
+    push bp
+    mov bp, sp
+    push bx
+
+    mov bx, ROOT_DIR_SECTOR_START_INDEX
+
+label_search_loop:
+    cmp bx, ROOT_DIR_SECTOR_END_INDEX
+    jae label_find_kernel_entry_false
+
+    push DATA_ADDR_SEGMENT
+    mov ax, bx
+    push ax
+    call read_sector
+    add sp, 4
+
+    push DATA_ADDR
+    call find_sector_kernel_entry
+    add sp, 2
+    cmp ax, 0
+    jne label_find_kernel_entry_true
+
+    inc word [bp - 2]
+    jmp label_search_loop
+
+label_find_kernel_entry_false:
+    mov ax, 1
+    jmp label_find_kernel_entry_final
+
+label_find_kernel_entry_true:
+    mov bx, ax
+    mov si, bx
+    add si, 0x1a    ; 起始簇
+    lodsw
+    mov [g_kernel_start_cluster], ax
+
+    mov si, bx
+    add si, 0x1c    ; 文件大小
+    lodsw
+    mov [g_kernel_file_size], ax
+    xor ax, ax
+
+label_find_kernel_entry_final:
+    pop bx
+    mov sp, bp
+    pop bp
+    ret
+
+; find_sector_kernel_entry(char* sector_addr)
+; 返回值 对应项首地址
+find_sector_kernel_entry:
+    push bp
+    mov bp, sp
+    push bx
+    push dx
+
+    mov dx, 0
+
+find_sector_kernel_loop:
+    push 11
+    push KERNEL_BIN_STRING
+    mov bx, [bp + 4]
+    add bx, dx
+    push bx
+    call memcmp
+    sub esp, 6
+    cmp ax, 0
+    je label_find_sector_kernel_entry_true
+    add dx, 32
+    cmp dx, (512 - 32)
+    ja label_find_sector_kernel_entry_false
+    jmp find_sector_kernel_loop
+
+label_find_sector_kernel_entry_false:
+    xor ax, ax
+    jmp label_memcmp_final
+label_find_sector_kernel_entry_true:
+    mov ax, bx
+label_find_sector_kernel_entry_final:
+    pop dx
+    pop bx
+    mov sp, bp
+    pop bp
+    ret
+
+; memcmp(char* buffer1, char* buffer2, word size);
+memcmp:
+    push bp
+    mov bp, sp
+    push cx
+
+    mov word [bp - 2], 0    ; word i
+    jmp label_memcmp_check_loop
+
+label_memcmp_loop:
+    mov ax, [bp - 2]
+    inc ax
+    mov word [bp - 2], ax
+
+label_memcmp_check_loop:
+    mov cx, word [bp - 2]
+    cmp cx, word [bp + 8]   ; size
+    jae label_memcmp_true
+
+    mov si, [bp + 4]        ; buffer1
+    add si, [bp - 2]        ; buffer1 + i
+    lodsb
+    mov cl, al
+
+    mov si, [bp + 6]        ; buffer2
+    add si, [bp - 2]        ; buffer2 + i
+    lodsb
+    cmp al, cl
+    je label_memcmp_loop
+
+label_memcmp_false:
+    mov ax, 1
+    jmp label_memcmp_final
+label_memcmp_true:
+    xor ax, ax
+label_memcmp_final:
+    mov sp, bp
+    pop bp
+    ret
+
+load_kernel_error:
+    push 19
+    push KERNEL_LOAD_ERROR_MESSAGE
+    call show_message
+    add sp, 4
+
+    jmp hlt_loop
+
 hlt_loop:
     hlt
     jmp hlt_loop
 
+; 变量
+g_kernel_start_cluster dw 0
+g_kernel_file_size dw 0
+
 ; 字符串
 LOADING_MESSAGE:
-    db "laading..", 0
+    db "loading..", 0
+KERNEL_LOAD_ERROR_MESSAGE:
+    db "kernel load error..", 0
+KERNEL_BIN_STRING:
+    db "KERNEL  BIN", 0
 
 GDT_TEMP:
     dw 0x0000, 0x0000, 0x0000, 0x0000   ; 空描述符
@@ -264,6 +418,6 @@ GDT_TEMP:
     DW 0
 
 GDTR_TEMP:
-    dw 8 * 3 - 1                     ; GDT限长
-    dd GDT_TEMP                      ; GDT基址
+    dw 8 * 3 - 1                ; GDT限长
+    dd GDT_TEMP                 ; GDT基址
     dd 0x00
