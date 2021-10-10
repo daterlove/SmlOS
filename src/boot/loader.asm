@@ -32,14 +32,13 @@ loader_entry:
     cli
     call open_a20_bus
 
-    db 0x66
-    lgdt [GDTR_TEMP]
+    lgdt [GDTR32_TEMP]
 
     mov eax, cr0
     or eax, 1
     mov cr0, eax                ; 开启保护模式
 
-    mov ax, 1 * 8               ; 设置段寄存器, 进入big real模式
+    mov ax, SELECTOR_DATA32     ; 设置段寄存器, 进入big real模式
     mov fs, ax
 
     mov eax, cr0
@@ -56,37 +55,23 @@ loader_entry:
     cmp ax, 0
     jne load_kernel_error
 
-    call read_kernel_data
+    call read_kernel_data       ; 加载内核
 
     push 9
     push LOADING_MESSAGE
     call show_message
     add sp, 4
 
-    jmp hlt_loop
+    ;jmp hlt_loop16
+    cli
+    lgdt [GDTR32_TEMP]
 
-    mov ax, 1 * 8               ; 重新设置段寄存器
-    mov ds, ax                  ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax                ; 开启保护模式
+    ;jmp hlt_loop16
 
-    jmp protect_mode            ; 切换到保护模式，指令解释变化，必须立马跳转
-
-;---------------------------------------------
-;进入保护模式
-protect_mode:
-    mov ax, 1 * 8               ; 重新设置段寄存器
-    mov ds, ax                  ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-
-    ;sti
-
-    jmp hlt_loop
+    jmp dword SELECTOR_CODE32:protect_mode            ; 切换到保护模式，指令解释变化，必须立马跳转
 
 ; show_message(char* str, word size);
 show_message:
@@ -534,11 +519,11 @@ load_kernel_error:
     call show_message
     add sp, 4
 
-    jmp hlt_loop
+    jmp hlt_loop16
 
-hlt_loop:
+hlt_loop16:
     hlt
-    jmp hlt_loop
+    jmp hlt_loop16
 
 ; 变量
 g_kernel_start_cluster dw 0
@@ -552,13 +537,91 @@ KERNEL_LOAD_ERROR_MESSAGE:
 KERNEL_BIN_STRING:
     db "KERNEL  BIN", 0
 
-GDT_TEMP:
+GDT32_TEMP:
     dw 0x0000, 0x0000, 0x0000, 0x0000   ; 空描述符
-    dw 0xffff, 0x0000, 0x9200, 0x00cf   ; 可读写数据段, 段限长4G-1, 段基址0, 内核数据段
-    dw 0xffff, 0x0000, 0x9a28, 0x0047   ; 可读可执行代码段, 段限长512KB，段基址为0x280000, 内核代码段
-    DW 0
+LABEL_DESC_DATA32:
+    dw 0xffff, 0x0000, 0x9200, 0x00cf   ; 可读写数据段
+LABEL_DESC_CODE32:
+    dw 0xffff, 0x0000, 0x9a00, 0x00cf   ; 可读可执行代码段
 
-GDTR_TEMP:
+SELECTOR_DATA32 equ LABEL_DESC_DATA32 - GDT32_TEMP
+SELECTOR_CODE32 equ LABEL_DESC_CODE32 - GDT32_TEMP
+
+GDTR32_TEMP:
     dw 8 * 3 - 1                ; GDT限长
-    dd GDT_TEMP                 ; GDT基址
-    dd 0x00
+    dd GDT32_TEMP               ; GDT基址
+
+GDT64_TEMP:
+    dq 0x0000000000000000
+LABEL_DESC_DATA64:
+    dq 0x0000920000000000
+LABEL_DESC_CODE64:
+    dq 0x0020980000000000
+
+SELECTOR_DATA64 equ LABEL_DESC_DATA64 - GDT64_TEMP
+SELECTOR_CODE64 equ LABEL_DESC_CODE64 - GDT64_TEMP
+
+GDTR64_TEMP:
+    dw 8 * 3 - 1                ; GDT限长
+    dd GDT64_TEMP               ; GDT基址
+
+[SECTION .s32]
+[BITS 32]
+
+;进入保护模式
+protect_mode:
+    mov ax, SELECTOR_DATA32     ; 重新设置段寄存器
+    mov ds, ax                  ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    mov esp, BOOT_STACK
+
+    ; 初始化临时页表
+    mov dword [0x90000], 0x91007
+    mov dword [0x90800], 0x91007
+    mov dword [0x91000], 0x92007
+    mov dword [0x92000], 0x000083
+    mov dword [0x92008], 0x200083
+    mov dword [0x92010], 0x400083
+    mov dword [0x92018], 0x600083
+    mov dword [0x92020], 0x800083
+    mov dword [0x92028], 0xa00083
+
+    ; 加载临时gdtr
+    cli
+    lgdt [GDTR64_TEMP]
+    mov ax, SELECTOR_DATA64
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    mov esp, BOOT_STACK
+
+    ; 开启pae
+    mov eax, cr4
+    bts eax, 5
+    mov cr4, eax
+
+    ; 加载cr3
+    mov eax, 0x90000
+    mov cr3, eax
+
+    ;进入long-mode
+    mov ecx, 0C0000080h  ;IA32_EFER
+    rdmsr
+
+    bts eax, 8
+    wrmsr
+
+    ; 开启分页
+    mov eax, cr0
+    bts eax, 0
+    bts eax, 31
+    mov cr0, eax
+
+    ; 跳转到kernel
+    jmp SELECTOR_CODE64:KERNEL_ADDR
+
