@@ -11,25 +11,25 @@ DATA_ADDR_SEGMENT equ 0x940
 disk_info:
     jmp boot_entry
     nop
-    db "SML-OS  "      ; 启动区的名称,8字符
-    dw 512             ; 每扇区字节数
-    db 1               ; 每簇扇区数
-    dw 1               ; FAT文件分配表之前的引导扇区
-    db 2               ; FAT表的个数
-    dw 224             ; 根目录 文件最大数
-    dw 2880            ; 逻辑 扇区 总数
-    db 0xf0            ; 磁盘种类
-    dw 9               ; 每个FAT占用 多少扇区
-    dw 18              ; 每磁道 扇区数
-    dw 2               ; 磁头数
-    dd 0               ; 隐藏扇区数
-    dd 2880            ; 如果逻辑扇区总数为0，则在这里记录扇区总数
-    db 0               ; 中断13的驱动器号
-    db 0               ; 未使用
-    db 0x29            ; 扩展引导标志
-    dd 0Xffffffff      ; 卷序列号
-    db "SML-OS     "   ; 卷标, 11个字符
-    db "FAT12   "      ; 文件系统类型，8个字符
+    db "SML-OS  "           ; 启动区的名称,8字符
+    dw 512                  ; 每扇区字节数
+    db 1                    ; 每簇扇区数
+    dw 1                    ; FAT文件分配表之前的引导扇区
+    db 2                    ; FAT表的个数
+    dw 224                  ; 根目录 文件最大数
+    dw 2880                 ; 逻辑 扇区 总数
+    db 0xf0                 ; 磁盘种类
+    dw 9                    ; 每个FAT占用 多少扇区
+    dw 18                   ; 每磁道 扇区数
+    dw 2                    ; 磁头数
+    dd 0                    ; 隐藏扇区数
+    dd 2880                 ; 如果逻辑扇区总数为0，则在这里记录扇区总数
+    db 0                    ; 中断13的驱动器号
+    db 0                    ; 未使用
+    db 0x29                 ; 扩展引导标志
+    dd 0Xffffffff           ; 卷序列号
+    db "SML-OS     "        ; 卷标, 11个字符
+    db "FAT12   "           ; 文件系统类型，8个字符
 
 boot_entry:
     mov ax, 0
@@ -39,7 +39,7 @@ boot_entry:
     mov sp, BOOT_STACK
     mov bp, sp
 
-    int 13h         ; 重置软驱
+    int 13h                 ; 重置软驱
 
     push FAT_ENTRY_ADDR_SEGMENT
     push 1
@@ -69,7 +69,7 @@ start_loader_loop:
 
     cmp ax, 0xff7
     ja run_loader
-    
+
     mov dx, ax
     add cx, 0x20            ; 加载段增加0x20即读取地址加512字节
     jmp start_loader_loop
@@ -109,12 +109,12 @@ label_find_loader_entry_false:
 label_find_loader_entry_true:
     mov bx, ax
     mov si, bx
-    add si, 0x1a    ; 起始簇
+    add si, 0x1a            ; 起始簇
     lodsw
     mov [g_loader_start_cluster], ax
 
     mov si, bx
-    add si, 0x1c    ; 文件大小
+    add si, 0x1c            ; 文件大小
     lodsw
     mov [g_loader_file_size], ax
     xor ax, ax
@@ -213,23 +213,23 @@ read_sector:
 
     mov bl, ah
     inc bl
-    mov cl, bl          ; 扇区
+    mov cl, bl              ; 扇区
 
     mov bl, al
     and bl, 1
-    mov dh, bl          ; 磁头
+    mov dh, bl              ; 磁头
 
     mov bl, al
     shr bl, 1
-    mov ch, bl          ; 柱面
+    mov ch, bl              ; 柱面
 
-    mov bx, 0           ; 读取地址 es:bx
-    mov dl, 0           ; 驱动器A
+    mov bx, 0               ; 读取地址 es:bx
+    mov dl, 0               ; 驱动器A
 
 label_reading_retry:
-    mov ah, 0x02        ; 读盘指令
-    mov al, 0x1         ; 读一个扇区
-    int 0x13            ; 调用bios
+    mov ah, 0x02            ; 读盘指令
+    mov al, 0x1             ; 读一个扇区
+    int 0x13                ; 调用bios
     jc label_reading_retry
 
     pop dx

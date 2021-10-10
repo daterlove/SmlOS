@@ -39,9 +39,13 @@ loader_entry:
     or eax, 1
     mov cr0, eax                ; 开启保护模式
 
+    mov ax, 1 * 8               ; 设置段寄存器, 进入big real模式
+    mov fs, ax
+
     mov eax, cr0
     and al, 11111110b
     mov cr0, eax                ; 返回实模式
+
     sti
 
     call reset_floppy           ; 重置软驱
@@ -51,6 +55,8 @@ loader_entry:
     call find_kernel_entry
     cmp ax, 0
     jne load_kernel_error
+
+    call read_kernel_data
 
     push 9
     push LOADING_MESSAGE
@@ -261,6 +267,106 @@ label_reading_retry:
     pop bp
     ret
 
+read_kernel_data:
+    push bp
+    mov bp, sp
+    push bx
+    push ecx
+    push dx
+
+    mov ecx, KERNEL_ADDR
+    mov dx, [g_kernel_start_cluster]
+
+read_kernel_data_loop:
+    push DATA_ADDR_SEGMENT
+    add dx, 31              ; 定位到数据区位置
+    push dx
+    call read_sector
+    add sp, 4
+
+    mov eax, 512
+    push eax
+    push ecx
+    mov eax, DATA_ADDR
+    push eax
+    call memcpy
+    add sp, 12
+
+    sub dx, 31
+    push dx
+    call get_fat_entry      ; 获取下一个加载扇区
+    add sp, 2
+
+    cmp ax, 0xff7
+    ja read_kernel_data_loop_final
+
+    mov dx, ax
+    add ecx, 512            ; 地址增加512字节
+    jmp read_kernel_data_loop
+
+read_kernel_data_loop_final:
+    pop dx
+    pop ecx
+    pop bx
+    mov sp, bp
+    pop bp
+    ret
+
+; get_fat_entry(word index)
+get_fat_entry:
+    push bp
+    mov bp, sp
+    push bx
+    push dx
+
+    ; ret = index % 2
+    mov ax, word [bp + 4]
+    and ax, 1
+
+    ; (fat_entry) + ((index - ret) * 3 / 2)
+    mov dx, word [bp + 4]
+    sub dx, ax
+    imul dx, 3
+    shr dx, 1
+    add dx, FAT_ENTRY_ADDR
+
+    ; ((ptr[1] & 0x0f) << 8) | ptr[0]
+    cmp al, 1
+    je label_index_odd_number
+    mov si, dx
+    inc si
+    lodsb
+    and ax, 0x0f
+    shl ax, 8
+    mov bx, ax
+
+    mov si, dx
+    lodsb
+    or ax, bx
+    jmp label_get_fat_entry_final
+
+label_index_odd_number:
+    ; (ptr[2] << 4) | ((ptr[1] >> 4) & 0x0F)
+    mov si, dx
+    add si, 2
+    lodsb
+    shl ax, 4
+    mov bx, ax
+
+    mov si, dx
+    inc si
+    lodsb
+    shr ax, 4
+    and ax, 0x0f
+    or ax, bx
+
+label_get_fat_entry_final:
+    pop dx
+    pop bx
+    mov sp, bp
+    pop bp
+    ret
+
 find_kernel_entry:
     push bp
     mov bp, sp
@@ -294,12 +400,12 @@ label_find_kernel_entry_false:
 label_find_kernel_entry_true:
     mov bx, ax
     mov si, bx
-    add si, 0x1a    ; 起始簇
+    add si, 0x1a            ; 起始簇
     lodsw
     mov [g_kernel_start_cluster], ax
 
     mov si, bx
-    add si, 0x1c    ; 文件大小
+    add si, 0x1c            ; 文件大小
     lodsw
     mov [g_kernel_file_size], ax
     xor ax, ax
@@ -383,6 +489,41 @@ label_memcmp_false:
 label_memcmp_true:
     xor ax, ax
 label_memcmp_final:
+    mov sp, bp
+    pop bp
+    ret
+
+; memcpy(char* src, char* dest, int size);
+memcpy:
+    push bp
+    mov bp, sp
+    push eax
+    push ebx
+    push ecx
+    push edx
+    push edi
+    push esi
+
+    mov esi, [bp + 4]
+    mov edi, [bp + 8]
+    mov ebx, [bp + 12]
+    mov ecx, 0
+
+label_memcpy_loop:
+    mov dl, byte [ds:esi]
+    mov byte [fs:edi], dl
+    inc esi
+    inc edi
+    inc ecx
+    cmp ecx, ebx
+    jb label_memcpy_loop
+
+    pop esi
+    pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
     mov sp, bp
     pop bp
     ret
