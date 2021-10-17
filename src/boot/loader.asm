@@ -2,8 +2,8 @@ org 0x9400
 
 BOOT_STACK equ 0x7c00
 
-ROOT_DIR_SECTOR_START_INDEX equ 19
-ROOT_DIR_SECTOR_END_INDEX equ 22
+ROOT_diR_SECTOR_START_INDEX equ 19
+ROOT_diR_SECTOR_END_INDEX equ 22
 
 FAT_ENTRY_ADDR equ 0x8000
 FAT_ENTRY_ADDR_SEGMENT equ 0x800
@@ -11,7 +11,17 @@ FAT_ENTRY_ADDR_SEGMENT equ 0x800
 DATA_ADDR equ 0x9100
 DATA_ADDR_SEGMENT equ 0x910
 
+VBE_INFO_ADDR equ 0x9000
+
 KERNEL_ADDR equ 0x100000
+
+VBEMODE     equ  0x180
+CYLS        equ  0x0FF0
+LEDS        equ  0X0FF1
+VMODE       equ  0X0FF2
+SCREEN_X    equ  0X0FF4
+SCREEN_Y    equ  0X0FF6
+VRAM        equ  0X0FF8
 
 jmp loader_entry
 
@@ -28,6 +38,11 @@ loader_entry:
 
     call clear_screen
     call reset_focus
+
+    push 9
+    push LOADING_MESSAGE
+    call show_message
+    add sp, 4
 
     cli
     call open_a20_bus
@@ -57,21 +72,85 @@ loader_entry:
 
     call read_kernel_data       ; 加载内核
 
-    push 9
-    push LOADING_MESSAGE
-    call show_message
-    add sp, 4
+    call open_vbe
 
-    ;jmp hlt_loop16
     cli
     lgdt [GDTR32_TEMP]
 
     mov eax, cr0
     or eax, 1
     mov cr0, eax                ; 开启保护模式
-    ;jmp hlt_loop16
 
     jmp dword SELECTOR_CODE32:protect_mode            ; 切换到保护模式，指令解释变化，必须立马跳转
+
+open_vbe:
+    push bp
+    mov bp, sp
+    push eax
+    push bx
+    push cx
+    push dx
+    push es
+    push di
+    push si
+
+    ; 获取vbe状态
+    mov ax, 0x00
+    mov es, ax
+    mov di, VBE_INFO_ADDR
+    mov ax, 0x4f00
+    int 0x10
+    cmp ax, 0x004f
+    jne label_open_vbe_error
+
+    ; 判断vbe版本
+    mov ax, [es:di + 4]
+    cmp ax, 0x0200
+    jb label_open_vbe_error
+
+    ; 获取画面模式信息
+    mov cx, VBEMODE
+    mov ax, 0x4f01
+    int 0x10
+    cmp ax, 0x004f
+    jne label_open_vbe_error
+
+    ; 切换vbe
+    mov bx, VBEMODE + 0x4000
+    mov ax, 0x4f02
+    int 0x10
+    cmp ax, 0x004f
+    jne label_open_vbe_error
+
+    ; 记录信息
+    mov byte [VMODE], 32
+    mov ax, [es:di + 0x12]
+    mov [SCREEN_X], ax
+    mov ax, [es:di + 0x14]
+    mov [SCREEN_Y], ax
+    mov eax, [es:di + 0x28]
+    mov [VRAM], eax
+
+    jmp label_open_vbe_final
+
+label_open_vbe_error:
+    push 20
+    push GET_VBE_ERROR_MESSAGE
+    call show_message
+    add sp, 4
+    jmp hlt_loop
+
+label_open_vbe_final:
+    pop si
+    pop di
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop eax
+    mov sp, bp
+    pop bp
+    ret
 
 ; show_message(char* str, word size);
 show_message:
@@ -357,10 +436,10 @@ find_kernel_entry:
     mov bp, sp
     push bx
 
-    mov bx, ROOT_DIR_SECTOR_START_INDEX
+    mov bx, ROOT_diR_SECTOR_START_INDEX
 
 label_search_loop:
-    cmp bx, ROOT_DIR_SECTOR_END_INDEX
+    cmp bx, ROOT_diR_SECTOR_END_INDEX
     jae label_find_kernel_entry_false
 
     push DATA_ADDR_SEGMENT
@@ -519,11 +598,11 @@ load_kernel_error:
     call show_message
     add sp, 4
 
-    jmp hlt_loop16
+    jmp hlt_loop
 
-hlt_loop16:
+hlt_loop:
     hlt
-    jmp hlt_loop16
+    jmp hlt_loop
 
 ; 变量
 g_kernel_start_cluster dw 0
@@ -534,18 +613,20 @@ LOADING_MESSAGE:
     db "loading..", 0
 KERNEL_LOAD_ERROR_MESSAGE:
     db "kernel load error..", 0
+GET_VBE_ERROR_MESSAGE:
+    db "get vbe info error..", 0
 KERNEL_BIN_STRING:
     db "KERNEL  BIN", 0
 
 GDT32_TEMP:
     dw 0x0000, 0x0000, 0x0000, 0x0000   ; 空描述符
-LABEL_DESC_DATA32:
+LABEL_DesC_DATA32:
     dw 0xffff, 0x0000, 0x9200, 0x00cf   ; 可读写数据段
-LABEL_DESC_CODE32:
+LABEL_DesC_CODE32:
     dw 0xffff, 0x0000, 0x9a00, 0x00cf   ; 可读可执行代码段
 
-SELECTOR_DATA32 equ LABEL_DESC_DATA32 - GDT32_TEMP
-SELECTOR_CODE32 equ LABEL_DESC_CODE32 - GDT32_TEMP
+SELECTOR_DATA32 equ LABEL_DesC_DATA32 - GDT32_TEMP
+SELECTOR_CODE32 equ LABEL_DesC_CODE32 - GDT32_TEMP
 
 GDTR32_TEMP:
     dw 8 * 3 - 1                ; GDT限长
@@ -553,13 +634,13 @@ GDTR32_TEMP:
 
 GDT64_TEMP:
     dq 0x0000000000000000
-LABEL_DESC_DATA64:
+LABEL_DesC_DATA64:
     dq 0x0000920000000000
-LABEL_DESC_CODE64:
+LABEL_DesC_CODE64:
     dq 0x0020980000000000
 
-SELECTOR_DATA64 equ LABEL_DESC_DATA64 - GDT64_TEMP
-SELECTOR_CODE64 equ LABEL_DESC_CODE64 - GDT64_TEMP
+SELECTOR_DATA64 equ LABEL_DesC_DATA64 - GDT64_TEMP
+SELECTOR_CODE64 equ LABEL_DesC_CODE64 - GDT64_TEMP
 
 GDTR64_TEMP:
     dw 8 * 3 - 1                ; GDT限长
@@ -571,7 +652,7 @@ GDTR64_TEMP:
 ;进入保护模式
 protect_mode:
     mov ax, SELECTOR_DATA32     ; 重新设置段寄存器
-    mov ds, ax                  ; DS, ES, FS, GS, SS都指向GDT中的内核数据段描述符
+    mov ds, ax                  ; DS, es, FS, GS, SS都指向GDT中的内核数据段描述符
     mov es, ax
     mov fs, ax
     mov gs, ax
