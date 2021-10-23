@@ -1,27 +1,27 @@
 org 0x9400
 
-BOOT_STACK equ 0x7c00
+BOOT_STACK                  equ 0x7c00
 
 ROOT_diR_SECTOR_START_INDEX equ 19
-ROOT_diR_SECTOR_END_INDEX equ 22
+ROOT_diR_SECTOR_END_INDEX   equ 22
 
-FAT_ENTRY_ADDR equ 0x8000
-FAT_ENTRY_ADDR_SEGMENT equ 0x800
+FAT_ENTRY_ADDR              equ 0x8000
+FAT_ENTRY_ADDR_SEGMENT      equ 0x800
 
-DATA_ADDR equ 0x9100
-DATA_ADDR_SEGMENT equ 0x910
+DATA_ADDR                   equ 0x9100
+DATA_ADDR_SEGMENT           equ 0x910
 
-VBE_INFO_ADDR equ 0x9000
+VBE_INFO_ADDR               equ 0x9000
 
-KERNEL_ADDR equ 0x100000
+KERNEL_ADDR                 equ 0x100000
 
-VBEMODE     equ  0x180
-CYLS        equ  0x0FF0
-LEDS        equ  0X0FF1
-VMODE       equ  0X0FF2
-SCREEN_X    equ  0X0FF4
-SCREEN_Y    equ  0X0FF6
-VRAM        equ  0X0FF8
+VBEMODE                     equ  0x180
+CYLS                        equ  0x0FF0
+LEDS                        equ  0X0FF1
+VMODE                       equ  0X0FF2
+SCREEN_X                    equ  0X0FF4
+SCREEN_Y                    equ  0X0FF6
+VRAM                        equ  0X0FF8
 
 jmp loader_entry
 
