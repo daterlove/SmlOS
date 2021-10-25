@@ -4868,3 +4868,33 @@ uint8 g_characters[256][16][8] =
     }
 };
 
+void character_print_color(
+    uint32* vram,
+    uint32 screen_x,
+    uint32 pos_x,
+    uint32 pos_y,
+    char value,
+    uint32 color
+)
+{
+    
+    uint32 i, j;
+    uint8* point = (uint8*)&g_characters[value];
+    uint32* ptr_start = vram + (pos_y * screen_x) + pos_x;
+    uint32* ptr_vram;
+
+    for (i = 0; i < 16; i++)
+    {
+        ptr_vram = ptr_start + (screen_x * i);
+        for (j = 0; j < 8; j++)
+        {
+            if (*point == 0x00)
+            {
+                point++;
+                continue;
+            }
+            ptr_vram[j] = color;
+            point++;
+        }
+    }
+}
