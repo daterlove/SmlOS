@@ -4868,7 +4868,7 @@ uint8 g_characters[256][16][8] =
     }
 };
 
-void character_print_color(
+bool character_print_color(
     uint32* vram,
     uint32 screen_x,
     uint32 pos_x,
@@ -4877,7 +4877,11 @@ void character_print_color(
     uint32 color
 )
 {
-    
+    if (pos_x + 8 > screen_x)
+    {
+        return false;
+    }
+
     uint32 i, j;
     uint8* point = (uint8*)&g_characters[value];
     uint32* ptr_start = vram + (pos_y * screen_x) + pos_x;
@@ -4897,4 +4901,30 @@ void character_print_color(
             point++;
         }
     }
+    return true;
+}
+
+void string_print_color(
+    uint32* vram,
+    uint32 screen_x,
+    uint32 pos_x,
+    uint32 pos_y,
+    char* str,
+    uint32 color
+)
+{
+    if (str == nullptr)
+    {
+        return;
+    }
+    char* ptr = str;
+    while (*ptr != '\0')
+    {
+        character_print_color(
+            vram, screen_x, pos_x, pos_y, *ptr, color
+        );
+        pos_x += 8;
+        ptr++;
+    }
+    return;
 }
