@@ -1,21 +1,34 @@
+TARGET = kernel.bin
+
+DIR_SRC = ./src
+DIR_OBJ = ./obj
+DIR_BIN = ./bin
+
+CC = gcc
+CFLAGS = -mcmodel=large -fno-builtin -m64
+AS = as
+AS_FLAGS = --64
+
+SOURCE_C = $(wildcard ${DIR_SRC}/*.c)  
+OBJECT_C = $(patsubst %.c, ${DIR_OBJ}/%.o, $(notdir ${SOURCE_C})) 
+BIN_TARGET = ${DIR_BIN}/${TARGET}
+
+${BIN_TARGET}: ${DIR_OBJ}/system
+	objcopy -I elf64-x86-64 -S -R ".eh_frame" -R ".comment" -O binary ${DIR_OBJ}/system ${BIN_TARGET}
+
+${DIR_OBJ}/system: ${DIR_OBJ}/head.o ${OBJECT_C}
+	ld -b elf64-x86-64 -o ${DIR_OBJ}/system ${DIR_OBJ}/head.o ${OBJECT_C} -T kernel.lds 
+
+${DIR_OBJ}/%.o: ${DIR_SRC}/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 all: system
 	objcopy -I elf64-x86-64 -S -R ".eh_frame" -R ".comment" -O binary system kernel.bin
 
-system:	head.o kernel.o character.o lib.o
-	ld -b elf64-x86-64 -o system head.o kernel.o character.o lib.o -T kernel.lds 
+${DIR_OBJ}/head.o: ${DIR_SRC}/head.S
+	$(CC) -E ${DIR_SRC}/head.S > ${DIR_OBJ}/head.s
+	$(AS) $(AS_FLAGS) -o ${DIR_OBJ}/head.o ${DIR_OBJ}/head.s
 
-kernel.o: kernel.c
-	gcc -mcmodel=large -fno-builtin -m64 -c kernel.c -o kernel.o
-
-character.o: character.c
-	gcc -mcmodel=large -fno-builtin -m64 -c character.c -o character.o
-
-lib.o: lib.c
-	gcc -mcmodel=large -fno-builtin -m64 -c lib.c -o lib.o
-
-head.o:	head.S
-	gcc -E head.S > head.s
-	as --64 -o head.o head.s
-
+.PHONY:
 clean:
-	rm -rf *.bin *.o head.s system kernel.bin
+	rm -rf ${DIR_OBJ}/* ${DIR_BIN}/*
