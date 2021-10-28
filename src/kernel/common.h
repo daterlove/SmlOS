@@ -3,5 +3,6 @@
 
 #include "types.h"
 #include "character.h"
+#include "lib.h"
 
 #endif
