@@ -16,8 +16,8 @@ void start_kernel(void)
     uint16* screen_y =  (uint16*)0xffff800000000ff6;
     uint32* vram =  (uint32*)0xffff800000000ff8;
 
-    char buf[50] = {0};
-    snprintf(buf, sizeof(buf), "mode:%d, screen_x:%d, screen_y:%d, vram:%p end",
+    char buf[90] = {0};
+    snprintf(buf, sizeof(buf), "info: mode:%d, screen_x:%d, screen_y:%d, vram:%p end",
         *mode, *screen_x, *screen_y, *vram);
 
     string_print_color(addr, 1440, 0, 0, buf, 0x00000000);
