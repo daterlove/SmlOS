@@ -14,5 +14,6 @@ char* strcpy(char* dest, const char* src);
 unsigned int strlen(const char* s);
 char* strcat(char* dest, const char* src);
 int snprintf(char *string, size_t length, const char *format, ...);
+void *memcpy(void *dest, const void *src, size_t n);
 
 #endif
