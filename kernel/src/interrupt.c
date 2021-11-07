@@ -42,3 +42,32 @@ void set_gate(int gate_index, unsigned type, void *addr,
     pack_gate(&gate, type, (unsigned long)addr, dpl, ist, seg);
     memcpy(&g_idt_table[gate_index], &gate, sizeof(struct gate_struct64_t));
 }
+
+void do_divide_error(unsigned long rsp, unsigned long error_code)
+{
+    unsigned long * p = NULL;
+    p = (unsigned long *)(rsp + 0x98);
+    int32* addr = (int *)0xffff800000a00000;
+    char buf[90] = {0};
+    snprintf(buf, sizeof(buf), "interrupt: divide error, rsp:%p, error_code:%ld",
+        rsp, error_code);
+
+    string_print_color(addr, 1440, 101, 224, buf, 0x00000000);
+}
+
+void idt_init()
+{
+    int i;
+    for (i = 0; i < IDT_ENTRIES; i++)
+    {
+        set_gate(i, GATE_INTERRUPT, divide_error, 0, 0, __KERNEL_CS);
+    }
+    struct desc_ptr idt_ptr;
+    idt_ptr.size = IDT_ENTRIES * sizeof(struct gate_struct64_t) - 1;
+    idt_ptr.address = (uint64)g_idt_table;
+
+    native_load_idt(&idt_ptr);
+
+    i = 0;
+    int j = 10 / i;
+}

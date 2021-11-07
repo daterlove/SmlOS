@@ -22,13 +22,13 @@ ${BIN_TARGET}: ${DIR_OBJ}/system
 	objcopy -I elf64-x86-64 -S -R ".eh_frame" -R ".comment" -O binary ${DIR_OBJ}/system ${BIN_TARGET}
 
 ${DIR_OBJ}/system: ${OBJECT_ASM} ${OBJECT_C}
-	ld -b elf64-x86-64 -o ${DIR_OBJ}/system ${OBJECT_ASM} ${OBJECT_C} -T kernel.lds 
+	ld -b elf64-x86-64 -o ${DIR_OBJ}/system ${DIR_OBJ}/head.o ${DIR_OBJ}/entry.o ${OBJECT_C} -T kernel.lds 
 
 ${DIR_OBJ}/%.o: ${DIR_SRC}/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 ${DIR_OBJ}/%.s: ${DIR_SRC}/%.S
-	$(CC) -E $< > $@ && $(AS) $(AS_FLAGS) -o $(patsubst %.s, %.o, $@) $<
+	$(CC) -E $< > $@ && $(AS) $(AS_FLAGS) -o $(patsubst %.s, %.o, $@) $@
 
 all: system
 	objcopy -I elf64-x86-64 -S -R ".eh_frame" -R ".comment" -O binary system kernel.bin

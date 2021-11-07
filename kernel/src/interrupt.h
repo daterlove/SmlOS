@@ -27,7 +27,7 @@ enum
 struct desc_ptr
 {
     uint16 size;
-    uint32 address;
+    uint64 address;
 } __attribute__((packed));
 
 #define IDT_ENTRIES 256
@@ -42,9 +42,11 @@ struct desc_ptr
 #define __USER_DS       (GDT_ENTRY_DEFAULT_USER_DS * 8 + 3)
 #define __USER_CS       (GDT_ENTRY_DEFAULT_USER_CS * 8 + 3)
 
-
 #define PTR_LOW(x)      ((unsigned long long)(x) & 0xFFFF)
 #define PTR_MIDDLE(x)   (((unsigned long long)(x) >> 16) & 0xFFFF)
 #define PTR_HIGH(x)     ((unsigned long long)(x) >> 32)
+
+void divide_error();
+void idt_init();
 
 #endif

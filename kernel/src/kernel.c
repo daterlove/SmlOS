@@ -1,6 +1,6 @@
 #include "common.h"
-
 #include "character.h"
+#include "interrupt.h"
 
 void start_kernel(void)
 {
@@ -21,7 +21,9 @@ void start_kernel(void)
         *mode, *screen_x, *screen_y, *vram);
 
     string_print_color(addr, 1440, 0, 0, buf, 0x00000000);
-    //string_print_color(addr, 1440, 101, 224, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 0x00000000);
+    idt_init();
+
+    string_print_color(addr, 1440, 101, 244, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 0x00000000);
 
     while (1)
     {
