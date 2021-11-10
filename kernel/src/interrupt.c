@@ -49,8 +49,8 @@ void do_divide_error(unsigned long rsp, unsigned long error_code)
     p = (unsigned long *)(rsp + 0x98);
     int32* addr = (int *)0xffff800000a00000;
     char buf[90] = {0};
-    snprintf(buf, sizeof(buf), "interrupt: divide error, rsp:%p, error_code:%ld",
-        rsp, error_code);
+    snprintf(buf, sizeof(buf), "interrupt: divide error, rsp:%p, rip:%p, error_code:%ld",
+        rsp, *p, error_code);
 
     string_print_color(addr, 1440, 101, 224, buf, 0x00000000);
 }
@@ -68,6 +68,4 @@ void idt_init()
 
     native_load_idt(&idt_ptr);
 
-    i = 0;
-    int j = 10 / i;
 }

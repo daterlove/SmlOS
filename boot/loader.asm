@@ -12,6 +12,7 @@ DATA_ADDR                   equ 0x9100
 DATA_ADDR_SEGMENT           equ 0x910
 
 VBE_INFO_ADDR               equ 0x9000
+MEMORY_INFO_ADDR            equ 0x7e00
 
 KERNEL_ADDR                 equ 0x100000
 
@@ -72,6 +73,8 @@ loader_entry:
 
     call read_kernel_data       ; 加载内核
 
+    call get_memory_info
+
     call open_vbe
 
     cli
@@ -82,6 +85,37 @@ loader_entry:
     mov cr0, eax                ; 开启保护模式
 
     jmp dword SELECTOR_CODE32:protect_mode            ; 切换到保护模式，指令解释变化，必须立马跳转
+
+get_memory_info:
+    push bp
+    mov bp, sp
+    push eax
+    push ebx
+    push ecx
+    push edx
+
+    mov ebx, 0
+    mov ax, 0
+    mov es, ax
+    mov di, MEMORY_INFO_ADDR
+
+get_memory_info_loop:
+    mov eax, 0x0e820
+    mov ecx, 20
+    mov edx, 0x534d4150
+    int 0x15
+    add di, 20
+    cmp ebx, 0
+    jne get_memory_info_loop
+
+get_memory_info_final:
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    mov sp, bp
+    pop bp
+    ret
 
 open_vbe:
     push bp
